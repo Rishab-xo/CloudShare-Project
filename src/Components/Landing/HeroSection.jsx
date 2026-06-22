@@ -2,6 +2,7 @@ import React from "react";
 import { ImageSplit } from "@/components/ui/image-split";
 import { GradientSlideButton } from "@/components/ui/gradient-slide-button";
 import dashboard from "../../assets/dashboard.png"
+import { SignInButton, SignUpButton } from "@clerk/react";
 
 const HeroSection = () => {
   return (
@@ -11,7 +12,7 @@ const HeroSection = () => {
 
           <div className="pt-32 pb-16 sm:pt-40 sm:pb-20 lg:pt-48 lg:pb-35">
             <div className="text-center mt-10 lg:mt-13">
-              
+
               <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
                 <span className="block">Share Files Securely with</span>
                 <span className="block text-purple-500">Cloud Share</span>
@@ -23,16 +24,20 @@ const HeroSection = () => {
 
               {/* Centered, locked-geometry button container */}
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
-                
+
                 {/* Button 1: Solid Purple */}
-                <button className="flex items-center justify-center px-8 py-3.5 text-base font-semibold text-white bg-purple-600 rounded-2xl shadow-lg shadow-purple-500/25 transition-all hover:bg-purple-700 hover:shadow-purple-500/40 cursor-pointer">
-                  Get Started
-                </button>
+                <SignUpButton mode="modal">
+                  <button className="flex items-center justify-center px-8 py-3.5 text-base font-semibold text-white bg-purple-600 rounded-2xl shadow-lg shadow-purple-500/25 transition-all hover:bg-purple-700 hover:shadow-purple-500/40 cursor-pointer">
+                    Get Started
+                  </button>
+                </SignUpButton>
 
                 {/* Button 2: Gradient Slide (Identical dimensions) */}
-                <GradientSlideButton className="flex items-center justify-center px-8 py-3.5 text-base font-semibold text-neutral-900 bg-white rounded-2xl shadow-lg shadow-black/5 transition-all hover:shadow-xl cursor-pointer">
-                  Sign In
-                </GradientSlideButton>
+                <SignInButton mode="modal">
+                  <GradientSlideButton className="flex items-center justify-center px-8 py-3.5 text-base font-semibold text-neutral-900 bg-white rounded-2xl shadow-lg shadow-black/5 transition-all hover:shadow-xl cursor-pointer">
+                    Sign In
+                  </GradientSlideButton>
+                </SignInButton>
 
               </div>
 
@@ -42,7 +47,7 @@ const HeroSection = () => {
           <div className="relative">
 
             <div className="mx-auto rounded-lg shadow-xl overflow-hidden  flex items-center justify-center">
-            <ImageSplit src={dashboard} sections={9} />
+              <ImageSplit src={dashboard} sections={9} />
             </div>
 
             <div className="absolute inset-0 bg-linear-to-t from-black opacity-10 rounded-lg"></div>
@@ -56,7 +61,7 @@ const HeroSection = () => {
           </div>
 
         </div>
-      </div>  
+      </div>
     </div>
   );
 };
