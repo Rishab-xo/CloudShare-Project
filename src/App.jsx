@@ -1,6 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Route, Routes} from 'react-router-dom'
-import { RedirectToSignIn, Show, SignIn, SignInButton, SignOutButton, SignUpButton, UserButton } from '@clerk/react'
+import { RedirectToSignIn, SignedIn, SignedOut } from '@clerk/clerk-react'
 import Landing from './Pages/Landing'
 import Dashboard from './Pages/Dashboard'
 import MyFiles from './Pages/MyFiles'
@@ -16,33 +16,33 @@ const App = () => {
         <Route path='/' element={<Landing />} />
         <Route path='/dashboard' element={
           <>
-          <Show when={"signed-in"}><Dashboard/></Show>
-          <Show when={"signed-out"}><RedirectToSignIn/></Show>
+            <SignedIn><Dashboard /></SignedIn>
+            <SignedOut><RedirectToSignIn /></SignedOut>
           </>
 
         } />
         <Route path='/my-files' element={
            <>
-          <Show when={"signed-in"}><MyFiles /></Show>
-          <Show when={"signed-out"}><RedirectToSignIn/></Show>
+            <SignedIn><MyFiles /></SignedIn>
+            <SignedOut><RedirectToSignIn /></SignedOut>
           </>
           } />
         <Route path='/upload' element={
            <>
-          <Show when={"signed-in"}><Upload /></Show>
-          <Show when={"signed-out"}><RedirectToSignIn/></Show>
+            <SignedIn><Upload /></SignedIn>
+            <SignedOut><RedirectToSignIn /></SignedOut>
           </>
           } />
         <Route path='/subscriptions' element={
            <>
-          <Show when={"signed-in"}><Subscription /></Show>
-          <Show when={"signed-out"}><RedirectToSignIn/></Show>
+            <SignedIn><Subscription /></SignedIn>
+            <SignedOut><RedirectToSignIn /></SignedOut>
           </>
           } />
         <Route path='/transactions' element={
            <>
-          <Show when={"signed-in"}><Transactions /></Show>
-          <Show when={"signed-out"}><RedirectToSignIn/></Show>
+            <SignedIn><Transactions /></SignedIn>
+            <SignedOut><RedirectToSignIn /></SignedOut>
           </>
           } />
         <Route path='/*' element={<RedirectToSignIn />} />

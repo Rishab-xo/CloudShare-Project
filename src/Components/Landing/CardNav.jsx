@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ArrowUpRight } from 'lucide-react';
 import './CardNav.css';
+import { SignInButton, SignUpButton } from '@clerk/clerk-react';
 
 const CardNav = ({
   logo,
@@ -156,14 +157,15 @@ const CardNav = ({
             )}
           </div>
 
-          <button
+          <SignUpButton>
+            <button
             type="button"
             className="card-nav-cta-button"
             style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
-            onClick={() => window.location.href = '/dashboard'}
           >
             Get Started
           </button>
+          </SignUpButton>
         </div>
 
         <div className="card-nav-content" aria-hidden={!isExpanded}>

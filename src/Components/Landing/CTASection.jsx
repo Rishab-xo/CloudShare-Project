@@ -2,14 +2,13 @@ import React from 'react';
 import { Button } from '../ui/button';
 import { ArrowRight, Sparkles, Zap } from 'lucide-react';
 import { SocialProofAvatars } from '../ui/social-proof-avatars';
+import { SignUpButton } from '@clerk/clerk-react';
 
 const CTASection = ({
   title = "Ready to Transform Your Workflow?",
   description = "Join thousands of teams already using our platform to streamline their processes and boost productivity. Start your free trial today—no credit card required.",
   primaryButtonText = "Get Started Free",
   secondaryButtonText = "Schedule a Demo",
-  onPrimaryClick = () => window.location.href = '/dashboard',
-  onSecondaryClick = () => window.location.href = '/subscription',
 }) => {
   return (
     <section className="relative w-full overflow-hidden bg-linear-to-br from-purple-100/30 via-white to-indigo-100/20 py-24 px-4 sm:px-6 lg:px-8 border-t border-gray-100">
@@ -46,9 +45,9 @@ const CTASection = ({
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-          <Button
+          <SignUpButton>
+            <Button
             size="lg"
-            onClick={onPrimaryClick}
             className="group relative overflow-hidden px-8 py-6 text-lg font-semibold bg-purple-600 text-white rounded-2xl shadow-lg hover:bg-purple-700 hover:shadow-purple-500/20 transition-all duration-300 cursor-pointer flex items-center gap-2"
           >
             <span className="relative z-10 flex items-center gap-2">
@@ -56,6 +55,7 @@ const CTASection = ({
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </span>
           </Button>
+          </SignUpButton>
         </div>
 
         {/* Trust indicators */}

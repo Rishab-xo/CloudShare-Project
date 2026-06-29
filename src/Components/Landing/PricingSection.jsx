@@ -1,6 +1,7 @@
 import React from "react";
 import { Check } from "lucide-react";
 import { pricingPlans } from "../../assets/data";
+import { SignInButton } from "@clerk/clerk-react";
 
 const PricingSection = () => {
   return (
@@ -61,7 +62,8 @@ const PricingSection = () => {
                     ))}
                   </ul>
 
-                  <button
+                  <SignInButton mode="modal">
+                    <button
                     type="button"
                     className={`w-full py-2.5 px-4 rounded-xl font-semibold text-sm text-center transition-all duration-200 cursor-pointer ${
                       isHighlighted
@@ -71,6 +73,7 @@ const PricingSection = () => {
                   >
                     {plan.cta}
                   </button>
+                  </SignInButton>
                 </div>
               </div>
             );
