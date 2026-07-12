@@ -1,8 +1,11 @@
 import React from 'react'
+import DashboardLayout from '@/Layout/DashboardLayout'
 
 const MyFiles = () => {
   return (
-    <div>MyFiles</div>
+    <DashboardLayout>
+      <div>My Files Content</div>
+    </DashboardLayout>
   )
 }
 

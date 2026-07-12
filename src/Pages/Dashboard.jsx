@@ -1,5 +1,4 @@
 import DashboardLayout from '@/Layout/DashboardLayout'
-import { UserButton } from '@clerk/clerk-react'
 import React from 'react'
 
 const Dashboard = () => {
@@ -7,7 +6,7 @@ const Dashboard = () => {
     <div>
       <DashboardLayout>
         <div>
-          <UserButton/>
+          Dashboard Content
         </div>
       </DashboardLayout>
     </div>

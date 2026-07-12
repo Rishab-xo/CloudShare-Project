@@ -1,8 +1,11 @@
 import React from 'react'
+import DashboardLayout from '@/Layout/DashboardLayout'
 
 const Upload = () => {
   return (
-    <div>Upload</div>
+    <DashboardLayout>
+      <div>Upload Content</div>
+    </DashboardLayout>
   )
 }
 

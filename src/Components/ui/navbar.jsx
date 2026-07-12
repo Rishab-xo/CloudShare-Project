@@ -1,17 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Wallet, Menu, X, LayoutDashboard, FileText, UploadCloud, CreditCard, History } from 'lucide-react'
+import { Wallet, Menu, X, LayoutGrid, Upload, Files, CreditCard, Receipt } from 'lucide-react'
 import { SignedIn, SignedOut, UserButton, SignInButton, useUser } from '@clerk/clerk-react'
 import { cn } from '@/lib/utils'
 import { assets } from '@/assets/assets'
 import { Button } from '@/Components/ui/button'
+import CreditsDisplay from '@/Components/CreditsDisplay'
 
 const navigationLinks = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/my-files', label: 'My Files', icon: FileText },
-  { href: '/upload', label: 'Upload File', icon: UploadCloud },
-  { href: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
-  { href: '/transactions', label: 'Transactions', icon: History },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
+  { href: '/upload', label: 'Upload', icon: Upload },
+  { href: '/my-files', label: 'My Files', icon: Files },
+  { href: '/subscriptions', label: 'Subscription', icon: CreditCard },
+  { href: '/transactions', label: 'Transactions', icon: Receipt },
 ]
 
 function ShareLogo({ className }) {
@@ -34,73 +35,121 @@ function ShareLogo({ className }) {
   )
 }
 
-export default function Navbar() {
+export default function Navbar({ isVisible: propIsVisible }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [localIsVisible, setLocalIsVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
   const location = useLocation()
   const { isSignedIn } = useUser()
 
+  useEffect(() => {
+    // Only track scroll locally if propIsVisible is not provided (e.g. on landing page)
+    if (propIsVisible !== undefined) return
+
+    const controlNavbar = () => {
+      if (typeof window !== 'undefined') {
+        // Only apply hide-on-scroll behavior on desktop screens (widths >= 1024px)
+        if (window.innerWidth < 1024) {
+          setLocalIsVisible(true)
+          return
+        }
+
+        const currentScrollY = window.scrollY
+        if (currentScrollY > lastScrollY && currentScrollY > 80) {
+          setLocalIsVisible(false)
+        } else {
+          setLocalIsVisible(true)
+        }
+        setLastScrollY(currentScrollY)
+      }
+    }
+
+    const handleResize = () => {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        setLocalIsVisible(true)
+      }
+    }
+
+    window.addEventListener('scroll', controlNavbar, { passive: true })
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('scroll', controlNavbar)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [lastScrollY, propIsVisible])
+
+  const isVisible = propIsVisible !== undefined ? propIsVisible : localIsVisible
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-        
-        {/* Left section: Hamburger (mobile only) + Logo */}
-        <div className="flex items-center gap-3">
-          {/* Mobile Sidebar Toggle Button */}
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="flex h-10 w-10 items-center justify-center rounded-md border bg-background hover:bg-accent hover:text-accent-foreground md:hidden"
-            aria-label="Toggle Menu"
-          >
-            {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+    <>
+      <header 
+        className={cn(
+          "sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-300 ease-in-out",
+          isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
+        )}
+      >
+        <div className="w-full flex h-16 items-center justify-between px-4 md:px-6">
+          
+          {/* Left section: Hamburger (mobile only) + Logo */}
+          <div className="flex items-center gap-3">
+            {/* Mobile Sidebar Toggle Button */}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="flex h-10 w-10 items-center justify-center rounded-md border bg-background hover:bg-accent hover:text-accent-foreground lg:hidden"
+              aria-label="Toggle Menu"
+            >
+              {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
 
-          {/* Logo */}
-          <Link to={isSignedIn ? "/dashboard" : "/"} className="flex items-center gap-2">
-            <ShareLogo className="h-8 w-8 text-blue-600 dark:text-blue-500" />
-            <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Cloud Share
-            </span>
-          </Link>
+            {/* Logo */}
+            <Link to={isSignedIn ? "/dashboard" : "/"} className="flex items-center gap-2">
+              <ShareLogo className="h-8 w-8 text-blue-600 dark:text-blue-500" />
+              <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Cloud Share
+              </span>
+            </Link>
+          </div>
+
+          {/* Right section: Wallet + User Profile */}
+          <div className="flex items-center gap-4">
+            {/* Wallet Icon */}
+            <Link
+              to="/subscriptions"
+              className="flex h-10 items-center gap-2 px-3 rounded-md border bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground text-sm font-medium select-none"
+              title="Wallet & Subscriptions"
+            >
+              <Wallet className="h-5 w-5 text-slate-600" />
+              <span className="hidden sm:inline">5 Credits</span>
+            </Link>
+
+            {/* Authentication Actions */}
+            <SignedIn>
+              <div className="flex items-center justify-center">
+                <UserButton 
+                  afterSignOutUrl="/" 
+                  appearance={{
+                    elements: {
+                      userButtonAvatarBox: "h-9 w-9 rounded-full border border-primary/20 shadow-sm"
+                    }
+                  }}
+                />
+              </div>
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <Button size="sm" className="hidden sm:inline-flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                  Sign In
+                </Button>
+              </SignInButton>
+            </SignedOut>
+          </div>
         </div>
-
-        {/* Right section: Wallet + User Profile */}
-        <div className="flex items-center gap-4">
-          {/* Wallet Icon */}
-          <Link
-            to="/subscriptions"
-            className="flex h-10 w-10 items-center justify-center rounded-md border bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            title="Wallet & Subscriptions"
-          >
-            <Wallet className="h-5 w-5" />
-          </Link>
-
-          {/* Authentication Actions */}
-          <SignedIn>
-            <div className="flex items-center justify-center">
-              <UserButton 
-                afterSignOutUrl="/" 
-                appearance={{
-                  elements: {
-                    userButtonAvatarBox: "h-9 w-9 rounded-full border border-primary/20 shadow-sm"
-                  }
-                }}
-              />
-            </div>
-          </SignedIn>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <Button size="sm" className="hidden sm:inline-flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                Sign In
-              </Button>
-            </SignInButton>
-          </SignedOut>
-        </div>
-      </div>
+      </header>
 
       {/* Mobile Sidebar overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 z-50 bg-black/60 md:hidden animate-in fade-in-0 duration-200"
+          className="fixed inset-0 z-50 bg-black/60 lg:hidden animate-in fade-in-0 duration-200"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -108,7 +157,7 @@ export default function Navbar() {
       {/* Mobile Sidebar panel */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-[280px] bg-background border-r p-6 shadow-xl flex flex-col gap-6 md:hidden transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 w-[280px] bg-white dark:bg-zinc-950 border-r p-6 shadow-xl flex flex-col gap-6 lg:hidden transition-transform duration-300 ease-in-out",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -141,17 +190,22 @@ export default function Navbar() {
                 to={link.href}
                 onClick={() => setIsSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  "flex items-center gap-5 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 select-none",
                   isActive 
-                    ? "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400"
-                    : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-violet-600 text-white shadow-md shadow-violet-600/15"
+                    : "text-slate-800 hover:text-black hover:bg-slate-50"
                 )}
               >
-                <Icon className={cn("h-4 w-4", isActive ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground")} />
+                <Icon className={cn("h-[24px] w-[24px] stroke-[2] transition-colors", isActive ? "text-white" : "text-slate-700")} />
                 {link.label}
               </Link>
             )
           })}
+        </div>
+
+        {/* Credits Display */}
+        <div className="px-2 mb-2">
+          <CreditsDisplay credits={45} maxCredits={100} />
         </div>
 
         {/* Sidebar Footer / User section for mobile */}
@@ -174,6 +228,6 @@ export default function Navbar() {
           </SignedOut>
         </div>
       </div>
-    </header>
+    </>
   )
 }

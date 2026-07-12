@@ -1,8 +1,11 @@
 import React from 'react'
+import DashboardLayout from '@/Layout/DashboardLayout'
 
 const Transactions = () => {
   return (
-    <div>Transactions</div>
+    <DashboardLayout>
+      <div>Transactions Content</div>
+    </DashboardLayout>
   )
 }
 

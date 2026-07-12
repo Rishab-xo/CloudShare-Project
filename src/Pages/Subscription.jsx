@@ -1,8 +1,11 @@
 import React from 'react'
+import DashboardLayout from '@/Layout/DashboardLayout'
 
 const Subscription = () => {
   return (
-    <div>Subscription</div>
+    <DashboardLayout>
+      <div>Subscription Content</div>
+    </DashboardLayout>
   )
 }
 
