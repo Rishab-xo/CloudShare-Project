@@ -7,7 +7,7 @@ const DashboardLayout = ({children}) => {
 
   return (
     <div>
-      <CardNav/>
+      Navbar
       {user && (
         <div className="flex">
         
