@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ArrowUpRight } from 'lucide-react';
 import './CardNav.css';
-import { SignInButton, SignUpButton } from '@clerk/clerk-react';
+import { SignInButton, SignUpButton } from '@clerk/react';
 
 const CardNav = ({
   logo,
@@ -165,7 +165,7 @@ const CardNav = ({
                 fill="currentColor"
               />
             </svg>
-            <span className="logo-text font-bold text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">Cloud Share</span>
+            <span className="logo-text font-bold text-lg bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">Cloud Share</span>
           </div>
 
           <SignUpButton>

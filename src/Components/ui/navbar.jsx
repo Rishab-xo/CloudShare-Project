@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Wallet, Menu, X, LayoutGrid, Upload, Files, CreditCard, Receipt } from 'lucide-react'
-import { SignedIn, SignedOut, UserButton, SignInButton, useUser } from '@clerk/clerk-react'
+// 1. Replaced SignedIn and SignedOut with Show
+import { Show, UserButton, SignInButton, useUser } from '@clerk/react'
 import { cn } from '@/lib/utils'
 import { assets } from '@/assets/assets'
 import { Button } from '@/Components/ui/button'
@@ -123,7 +124,8 @@ export default function Navbar({ isVisible: propIsVisible }) {
             </Link>
 
             {/* Authentication Actions */}
-            <SignedIn>
+            {/* 2. Replaced SignedIn with Show when="signed-in" */}
+            <Show when="signed-in">
               <div className="flex items-center justify-center">
                 <UserButton 
                   afterSignOutUrl="/" 
@@ -134,14 +136,16 @@ export default function Navbar({ isVisible: propIsVisible }) {
                   }}
                 />
               </div>
-            </SignedIn>
-            <SignedOut>
+            </Show>
+
+            {/* 3. Replaced SignedOut with Show when="signed-out" */}
+            <Show when="signed-out">
               <SignInButton mode="modal">
                 <Button size="sm" className="hidden sm:inline-flex bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
                   Sign In
                 </Button>
               </SignInButton>
-            </SignedOut>
+            </Show>
           </div>
         </div>
       </header>
@@ -210,7 +214,8 @@ export default function Navbar({ isVisible: propIsVisible }) {
 
         {/* Sidebar Footer / User section for mobile */}
         <div className="border-t pt-4 flex flex-col gap-4">
-          <SignedIn>
+          {/* 4. Replaced mobile SignedIn with Show when="signed-in" */}
+          <Show when="signed-in">
             <div className="flex items-center gap-3 px-2">
               <UserButton afterSignOutUrl="/" />
               <div className="flex flex-col">
@@ -218,14 +223,16 @@ export default function Navbar({ isVisible: propIsVisible }) {
                 <span className="text-xs text-muted-foreground">Manage profile</span>
               </div>
             </div>
-          </SignedIn>
-          <SignedOut>
+          </Show>
+
+          {/* 5. Replaced mobile SignedOut with Show when="signed-out" */}
+          <Show when="signed-out">
             <SignInButton mode="modal">
               <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
                 Sign In
               </Button>
             </SignInButton>
-          </SignedOut>
+          </Show>
         </div>
       </div>
     </>

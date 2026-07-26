@@ -1,5 +1,5 @@
 import Navbar from '@/Components/ui/navbar';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@clerk/react';
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutGrid, Upload, Files, CreditCard, Receipt } from 'lucide-react';

@@ -1,7 +1,17 @@
 import DashboardLayout from '@/Layout/DashboardLayout'
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useAuth } from '@clerk/react'
 
 const Dashboard = () => {
+
+  const{getToken} = useAuth();
+  useEffect(()=>{
+    const displayToken = async()=>{
+      const token = await getToken();
+    }
+    displayToken();
+  },[])
+
   return (
     <div>
       <DashboardLayout>

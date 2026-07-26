@@ -1,7 +1,7 @@
 import React from "react";
 import { Check } from "lucide-react";
 import { pricingPlans } from "../../assets/data";
-import { SignInButton } from "@clerk/clerk-react";
+import { SignInButton } from "@clerk/react";
 
 const PricingSection = () => {
   return (

@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '../ui/button';
 import { ArrowRight, Sparkles, Zap } from 'lucide-react';
 import { SocialProofAvatars } from '../ui/social-proof-avatars';
-import { SignUpButton } from '@clerk/clerk-react';
+import { SignUpButton } from '@clerk/react';
 
 const CTASection = ({
   title = "Ready to Transform Your Workflow?",
