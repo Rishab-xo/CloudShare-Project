@@ -1,15 +1,52 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Coins, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@clerk/react';
+import axios from 'axios';
+import { apiEndpoints } from '@/utils/apiEndpoints';
 
 /**
  * CreditsDisplay Component
  * Shows user's credit usage with a progress bar, status text, and upgrade action.
- * 
- * @param {number} credits - Current credits used
- * @param {number} maxCredits - Maximum credits available
  */
-const CreditsDisplay = ({ credits = 45, maxCredits = 100 }) => {
+const CreditsDisplay = ({ credits: defaultCredits = 0, maxCredits: defaultMaxCredits = 100 }) => {
+  const [credits, setCredits] = useState(defaultCredits);
+  const [maxCredits, setMaxCredits] = useState(defaultMaxCredits);
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      try {
+        const token = await getToken();
+        const response = await axios.get(apiEndpoints.GET_USER_CREDITS, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.status === 200 && response.data !== undefined) {
+          let fetchedCredits = defaultCredits;
+          let fetchedMax = defaultMaxCredits;
+
+          if (typeof response.data === 'number') {
+            fetchedCredits = response.data;
+          } else if (typeof response.data === 'object' && response.data !== null) {
+            fetchedCredits = response.data.credits ?? response.data.usedCredits ?? response.data.creditsUsed ?? response.data.currentCredits ?? defaultCredits;
+            fetchedMax = response.data.maxCredits ?? response.data.totalCredits ?? response.data.limit ?? defaultMaxCredits;
+          }
+
+          setCredits(fetchedCredits);
+          setMaxCredits(fetchedMax);
+        }
+      } catch (err) {
+        console.log('Error fetching credits from backend:', err);
+      }
+    };
+
+    fetchCredits();
+
+    // Listen for custom event when upload or action completes
+    window.addEventListener('creditsUpdated', fetchCredits);
+    return () => window.removeEventListener('creditsUpdated', fetchCredits);
+  }, [getToken]);
+
   const percentage = Math.min(100, Math.max(0, Math.round((credits / maxCredits) * 100)));
   const isNearLimit = percentage >= 85;
 
