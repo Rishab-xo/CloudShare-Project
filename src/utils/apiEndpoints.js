@@ -10,7 +10,8 @@ export const apiEndpoints = {
   PUBLIC_FILE: (id) => `${BASE_URL}/files/public/${id}`,
 
   // User & Account endpoints
-  GET_USER_CREDITS: `${BASE_URL}/user/credits`,
+  GET_USER_CREDITS: `${BASE_URL}/users/credits`,
+  GET_CREDITS: `${BASE_URL}/users/credits`,
 
   // // Subscriptions & Payments endpoints
   // GET_PLANS: `${BASE_URL}/subscriptions/plans`,

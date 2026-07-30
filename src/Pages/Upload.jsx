@@ -7,47 +7,73 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { apiEndpoints } from '@/utils/apiEndpoints';
 
+const MAX_FILE_LIMIT = 5;
+
 const Upload = () => {
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const { getToken } = useAuth();
   const navigate = useNavigate();
 
+  const addFiles = (newFiles) => {
+    const fileArray = Array.from(newFiles);
+    if (fileArray.length === 0) return;
+
+    setSelectedFiles((prevFiles) => {
+      const combined = [...prevFiles];
+      let limitExceeded = false;
+
+      fileArray.forEach((file) => {
+        if (combined.length >= MAX_FILE_LIMIT) {
+          limitExceeded = true;
+          return;
+        }
+        const exists = combined.some((f) => f.name === file.name && f.size === file.size);
+        if (!exists) {
+          combined.push(file);
+        }
+      });
+
+      if (limitExceeded || prevFiles.length + fileArray.length > MAX_FILE_LIMIT) {
+        toast.error(`Maximum limit is ${MAX_FILE_LIMIT} files at a time.`);
+      }
+
+      return combined;
+    });
+  };
+
   const handleFileSelect = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+    if (e.target.files) {
+      addFiles(e.target.files);
     }
+    // Reset target value so the same file selection can trigger onChange if re-added
+    e.target.value = null;
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files) {
+      addFiles(e.dataTransfer.files);
     }
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
+  const removeFile = (index) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) {
-      toast.error('Please select a file to upload');
+    if (selectedFiles.length === 0) {
+      toast.error('Please select at least one file to upload');
       return;
     }
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('files', selectedFile);
-    formData.append('file', selectedFile);
+    selectedFiles.forEach((file) => {
+      formData.append('files', file);
+    });
 
     try {
       const token = await getToken();
@@ -58,9 +84,13 @@ const Upload = () => {
       });
 
       if (response.status === 200 || response.status === 201) {
-        toast.success('File uploaded successfully!');
+        toast.success(
+          selectedFiles.length === 1 
+            ? 'File uploaded successfully!' 
+            : `${selectedFiles.length} files uploaded successfully!`
+        );
         window.dispatchEvent(new Event('creditsUpdated'));
-        setSelectedFile(null);
+        setSelectedFiles([]);
         navigate('/my-files');
       }
     } catch (error) {
@@ -73,7 +103,7 @@ const Upload = () => {
       if (isOutofCredits) {
         toast.error('Upload limit reached! You have used all available credits.', { duration: 5000 });
       } else {
-        toast.error(`Error uploading file: ${error.response?.data?.message || error.message}`);
+        toast.error(`Error uploading files: ${error.response?.data?.message || error.message}`);
       }
     } finally {
       setIsUploading(false);
@@ -84,16 +114,18 @@ const Upload = () => {
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-6 p-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Upload File</h1>
-          <p className="text-sm text-slate-500 mt-1">Upload your documents, images, or videos to store and share securely.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Upload Files</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Upload up to {MAX_FILE_LIMIT} documents, images, or videos to store and share securely.
+          </p>
         </div>
 
         <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
           {/* Drag & Drop Box */}
           <div
             onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
             className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center text-center transition-all ${
               isDragOver
                 ? 'border-violet-500 bg-violet-50/50'
@@ -105,46 +137,71 @@ const Upload = () => {
             </div>
 
             <h3 className="text-lg font-semibold text-slate-800 mb-1">
-              Drag & drop your file here
+              Drag & drop your files here
             </h3>
-            <p className="text-sm text-slate-400 mb-4">or click to browse from your device</p>
+            <p className="text-sm text-slate-400 mb-4">
+              or click to browse from your device (Max {MAX_FILE_LIMIT} files)
+            </p>
 
             <label className="bg-violet-600 hover:bg-violet-700 text-white font-medium px-5 py-2.5 rounded-xl text-sm transition-colors cursor-pointer shadow-sm">
-              <span>Choose File</span>
+              <span>Choose Files</span>
               <input
                 type="file"
+                multiple
                 className="hidden"
                 onChange={handleFileSelect}
-                disabled={isUploading}
+                disabled={isUploading || selectedFiles.length >= MAX_FILE_LIMIT}
               />
             </label>
           </div>
 
-          {/* Selected File Details */}
-          {selectedFile && (
-            <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-violet-600">
-                  <File className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {(selectedFile.size / 1024).toFixed(1)} KB
-                  </p>
-                </div>
+          {/* Selected Files List */}
+          {selectedFiles.length > 0 && (
+            <div className="mt-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-slate-700">
+                  Selected Files ({selectedFiles.length}/{MAX_FILE_LIMIT})
+                </h4>
+                <button
+                  onClick={() => setSelectedFiles([])}
+                  disabled={isUploading}
+                  className="text-xs text-rose-500 hover:underline font-medium"
+                >
+                  Clear all
+                </button>
               </div>
 
-              <button
-                onClick={() => setSelectedFile(null)}
-                disabled={isUploading}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-white transition-colors"
-                title="Remove file"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {selectedFiles.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 bg-white rounded-lg border border-slate-100 text-violet-600">
+                        <File className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => removeFile(index)}
+                      disabled={isUploading}
+                      className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-white transition-colors"
+                      title="Remove file"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -152,7 +209,7 @@ const Upload = () => {
           <div className="mt-8 flex justify-end">
             <button
               onClick={handleUpload}
-              disabled={!selectedFile || isUploading}
+              disabled={selectedFiles.length === 0 || isUploading}
               className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2"
             >
               {isUploading ? (
@@ -163,7 +220,9 @@ const Upload = () => {
               ) : (
                 <>
                   <UploadCloud className="w-4 h-4" />
-                  <span>Upload File</span>
+                  <span>
+                    Upload {selectedFiles.length > 0 ? `${selectedFiles.length} File${selectedFiles.length > 1 ? 's' : ''}` : 'Files'}
+                  </span>
                 </>
               )}
             </button>

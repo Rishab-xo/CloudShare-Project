@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Wallet, Menu, X, LayoutGrid, Upload, Files, CreditCard, Receipt } from 'lucide-react'
 // 1. Replaced SignedIn and SignedOut with Show
-import { Show, UserButton, SignInButton, useUser } from '@clerk/react'
+import { Show, UserButton, SignInButton, useUser, useAuth } from '@clerk/react'
 import { cn } from '@/lib/utils'
-import { assets } from '@/assets/assets'
 import { Button } from '@/Components/ui/button'
 import CreditsDisplay from '@/Components/CreditsDisplay'
+import { UserCreditsContext } from '@/context/UserCreditsContext'
 
 const navigationLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
@@ -42,6 +42,11 @@ export default function Navbar({ isVisible: propIsVisible }) {
   const [lastScrollY, setLastScrollY] = useState(0)
   const location = useLocation()
   const { isSignedIn } = useUser()
+  const { credits, fetchUserCredits } = useContext(UserCreditsContext)
+
+  useEffect(() => {
+    fetchUserCredits()
+  }, [fetchUserCredits])
 
   useEffect(() => {
     // Only track scroll locally if propIsVisible is not provided (e.g. on landing page)
@@ -120,7 +125,7 @@ export default function Navbar({ isVisible: propIsVisible }) {
               title="Wallet & Subscriptions"
             >
               <Wallet className="h-5 w-5 text-slate-600" />
-              <span className="hidden sm:inline">5 Credits</span>
+              <span className="hidden sm:inline">{credits} Credits</span>
             </Link>
 
             {/* Authentication Actions */}
@@ -209,7 +214,7 @@ export default function Navbar({ isVisible: propIsVisible }) {
 
         {/* Credits Display */}
         <div className="px-2 mb-2">
-          <CreditsDisplay credits={45} maxCredits={100} />
+          <CreditsDisplay />
         </div>
 
         {/* Sidebar Footer / User section for mobile */}

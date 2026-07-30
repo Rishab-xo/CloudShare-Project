@@ -64,30 +64,30 @@ const DashboardLayout = ({ children }) => {
           {/* Sidebar - Desktop */}
           <aside 
             className={cn(
-              "hidden lg:flex flex-col w-64 border-r border-slate-100 bg-white flex-shrink-0 pb-6 px-6 select-none transition-all duration-300 ease-in-out sticky",
+              "hidden lg:flex flex-col w-64 border-r border-slate-100 bg-white flex-shrink-0 pb-4 px-4 select-none transition-all duration-300 ease-in-out sticky",
               isNavbarVisible 
-                ? "h-[calc(100vh-4rem)] top-16 pt-6" 
-                : "h-screen top-0 pt-8"
+                ? "h-[calc(100vh-4rem)] top-16 pt-4" 
+                : "h-screen top-0 pt-6"
             )}
           >
             {/* User Profile Section */}
-            <div className="flex flex-col items-center mb-4">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-[#8B5CF6] to-[#3B82F6] flex items-center justify-center shadow-md overflow-hidden border border-white mb-3">
+            <div className="flex flex-col items-center mb-2">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-b from-[#8B5CF6] to-[#3B82F6] flex items-center justify-center shadow-md overflow-hidden border border-white mb-2">
                 {isDefaultAvatar ? (
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-white opacity-95 translate-y-1">
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10 text-white opacity-95 translate-y-1">
                     <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
                   </svg>
                 ) : (
                   <img src={user.imageUrl} alt={user.fullName || 'User'} className="w-full h-full object-cover" />
                 )}
               </div>
-              <span className="text-lg font-medium text-slate-800 tracking-wide">
+              <span className="text-base font-medium text-slate-800 tracking-wide">
                 {user.fullName || 'Bushan SC'}
               </span>
             </div>
 
             {/* Navigation Menu */}
-            <nav className="flex flex-col gap-3 px-2 mt-2">
+            <nav className="flex flex-col gap-1.5 px-1 mt-1">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
@@ -96,16 +96,16 @@ const DashboardLayout = ({ children }) => {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      "flex items-center gap-5 px-4 py-3 rounded-xl transition-all duration-200 group text-base font-medium select-none",
+                      "flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium select-none",
                       isActive
                         ? "bg-violet-600 text-white shadow-md shadow-violet-600/15 font-medium"
-                        : "text-slate-800 hover:text-black hover:bg-slate-50"
+                        : "text-slate-700 hover:text-black hover:bg-slate-50"
                     )}
                   >
                     <Icon
                       className={cn(
-                        "w-[24px] h-[24px] stroke-[2] transition-colors",
-                        isActive ? "text-white" : "text-slate-700 group-hover:text-black"
+                        "w-5 h-5 stroke-[2] transition-colors",
+                        isActive ? "text-white" : "text-slate-600 group-hover:text-black"
                       )}
                     />
                     <span>{item.label}</span>
@@ -115,8 +115,8 @@ const DashboardLayout = ({ children }) => {
             </nav>
 
             {/* Credits Display */}
-            <div className="mt-auto px-2">
-              <CreditsDisplay credits={45} maxCredits={100} />
+            <div className="mt-auto px-1">
+              <CreditsDisplay />
             </div>
           </aside>
 

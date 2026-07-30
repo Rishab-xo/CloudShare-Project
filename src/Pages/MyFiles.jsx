@@ -19,7 +19,8 @@ import {
   Eye,
   AlertCircle,
   X,
-  Copy
+  Copy,
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '@clerk/react';
 import axios from 'axios';
@@ -33,15 +34,55 @@ const MyFiles = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [shareModalFile, setShareModalFile] = useState(null);
   const [deleteModalFile, setDeleteModalFile] = useState(null);
+  const [copyLinkModalFile, setCopyLinkModalFile] = useState(null);
+  const [isCopied, setIsCopied] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const {getToken} = useAuth();
 
-  const handleCopyShareLink = (file) => {
-    const fileId = file.id || file._id;
-    const shareUrl = file.url || file.fileUrl || `${window.location.origin}/file/${fileId}`;
-    navigator.clipboard.writeText(shareUrl);
-    toast.success('Share link copied to clipboard!');
+  const openShareLinkModal = (file) => {
+    setCopyLinkModalFile(file);
+    setIsCopied(false);
+  };
+
+  const handleCopyModalUrl = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!copyLinkModalFile) return;
+    const fileId = copyLinkModalFile.id || copyLinkModalFile._id;
+    const shareUrl = `${window.location.origin}/file/${fileId}`;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      setIsCopied(true);
+      toast.success('Link copied to clipboard!');
+    } catch (err) {
+      console.error('Clipboard copy error:', err);
+      // Fallback copy mechanism
+      try {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        setIsCopied(true);
+        toast.success('Link copied to clipboard!');
+      } catch (fallbackErr) {
+        toast.error('Failed to copy link automatically');
+      }
+    }
   };
 
   const fetchFiles = async ()=>{
@@ -174,6 +215,7 @@ const MyFiles = () => {
       if (response.status === 200 || response.status === 204) {
         setFiles(prevFiles => prevFiles.filter(file => (file.id || file._id) !== fileId));
         toast.success('File deleted successfully!');
+        window.dispatchEvent(new Event('creditsUpdated'));
       }
     } catch (error) {
       console.error("Error deleting file:", error);
@@ -182,6 +224,21 @@ const MyFiles = () => {
       setIsDeleting(false);
       setDeleteModalFile(null);
     }
+  };
+
+  const formatFileName = (rawName, maxLength = 35) => {
+    if (!rawName) return '';
+    if (rawName.length <= maxLength) return rawName;
+
+    const parts = rawName.split('.');
+    if (parts.length > 1) {
+      const ext = parts.pop();
+      const base = parts.join('.');
+      const availableBaseLength = Math.max(10, maxLength - ext.length - 4);
+      return `${base.substring(0, availableBaseLength)}...${ext}`;
+    }
+
+    return `${rawName.substring(0, maxLength - 3)}...`;
   };
 
   const getCategory = (fileObj) => {
@@ -206,7 +263,7 @@ const MyFiles = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const getFileIcon = (fileObj) => {
+  const getFileIcon = (fileObj, className = "w-5 h-5") => {
     // Handle both object parameter or string type
     const typeStr = typeof fileObj === 'string' ? fileObj : (fileObj?.type || fileObj?.fileType || fileObj?.contentType || '');
     const nameStr = typeof fileObj === 'object' ? (fileObj?.name || fileObj?.fileName || '') : '';
@@ -221,12 +278,12 @@ const MyFiles = () => {
       ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'flv'].includes(ext);
 
     if (isImage) {
-      return <ImageIcon className="w-5 h-5 text-purple-600 stroke-[2]" />;
+      return <ImageIcon className={`${className} text-purple-600 stroke-[2]`} />;
     }
     if (isVideo) {
-      return <Film className="w-5 h-5 text-purple-600 stroke-[2]" />;
+      return <Film className={`${className} text-purple-600 stroke-[2]`} />;
     }
-    return <FileText className="w-5 h-5 text-purple-600 stroke-[2]" />;
+    return <FileText className={`${className} text-purple-600 stroke-[2]`} />;
   };
 
   return (
@@ -348,103 +405,103 @@ const MyFiles = () => {
           </div>
         ) : viewMode === 'list' ? (
           /* List View (Table Format) */
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-3xl border border-slate-100/80 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-                    <th className="py-3.5 px-4 w-2/5">NAME</th>
-                    <th className="py-3.5 px-4 w-20">SIZE</th>
-                    <th className="py-3.5 px-4 w-28">UPLOADED</th>
-                    <th className="py-3.5 px-4 w-44">SHARING</th>
-                    <th className="py-3.5 px-4 text-right w-24">ACTIONS</th>
+                  <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                    <th className="py-4 px-5 w-2/5">NAME</th>
+                    <th className="py-4 px-5 w-24">SIZE</th>
+                    <th className="py-4 px-5 w-32">UPLOADED</th>
+                    <th className="py-4 px-5 w-48">SHARING</th>
+                    <th className="py-4 px-5 text-right w-28">ACTIONS</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+                <tbody className="divide-y divide-slate-100/80 text-sm text-slate-700">
                   {filteredFiles.map((file) => {
                     const fileId = file.id || file._id;
                     const isPublic = Boolean(file.isPublic || file.public);
                     return (
-                      <tr key={fileId} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="py-3.5 px-4 max-w-[220px]">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 shrink-0">
+                      <tr key={fileId} className="hover:bg-violet-50/20 transition-colors duration-200 group">
+                        <td className="py-3.5 px-5">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="p-2.5 bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl border border-violet-100/50 shrink-0 group-hover:scale-105 transition-transform duration-200">
                               {getFileIcon(file)}
                             </div>
-                            <span className="font-medium text-slate-800 truncate text-xs" title={file.name || file.fileName}>
-                              {file.name || file.fileName}
+                            <span className="font-semibold text-slate-800 text-xs truncate group-hover:text-violet-900 transition-colors" title={file.name || file.fileName}>
+                              {formatFileName(file.name || file.fileName, 35)}
                             </span>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap text-xs">
+                        <td className="py-3.5 px-5 text-slate-500 whitespace-nowrap text-xs font-medium">
                           {((file.size || file.fileSize || 0) / 1024).toFixed(1)} KB
                         </td>
-                        <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap text-xs">
+                        <td className="py-3.5 px-5 text-slate-500 whitespace-nowrap text-xs font-medium">
                           {formatDate(file.uploadedAt || file.updatedAt || file.createdAt || file.uploadDate)}
                         </td>
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            {Boolean(file.isPublic || file.public) ? (
+                        <td className="py-3.5 px-5 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            {isPublic ? (
                               <button
                                 onClick={() => promptToggleSharing(file)}
-                                className="flex items-center gap-1.5 cursor-pointer group text-slate-700 hover:text-violet-600 transition-colors text-xs"
+                                className="flex items-center gap-1.5 cursor-pointer group/btn bg-emerald-50/60 border border-emerald-100/80 px-2.5 py-1 rounded-full transition-all"
                                 title="Click to make private"
                               >
-                                <Globe size={15} className="text-emerald-500 hover:scale-110 transition-transform" />
-                                <span className="font-medium group-hover:underline">
-                                  Public
-                                </span>
+                                <Globe size={13} className="text-emerald-500 group-hover/btn:scale-110 transition-transform" />
+                                <span className="font-semibold text-emerald-700 text-[11px]">Public</span>
                               </button>
                             ) : (
                               <button
                                 onClick={() => promptToggleSharing(file)}
-                                className="flex items-center gap-1.5 cursor-pointer group text-slate-700 hover:text-violet-600 transition-colors text-xs"
+                                className="flex items-center gap-1.5 cursor-pointer group/btn bg-slate-100/60 border border-slate-200/60 px-2.5 py-1 rounded-full transition-all"
                                 title="Click to make public"
                               >
-                                <Lock size={15} className="text-slate-400 group-hover:text-violet-600 hover:scale-110 transition-transform" />
-                                <span className="font-medium group-hover:underline">
-                                  Private
-                                </span>
+                                <Lock size={13} className="text-slate-400 group-hover/btn:text-violet-600 group-hover/btn:scale-110 transition-transform" />
+                                <span className="font-semibold text-slate-500 text-[11px]">Private</span>
                               </button>
                             )}
 
-                            {Boolean(file.isPublic || file.public) && (
+                            {isPublic && (
                               <button
-                                onClick={() => handleCopyShareLink(file)}
-                                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs font-medium cursor-pointer"
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openShareLinkModal(file);
+                                }}
+                                className="flex items-center gap-1 text-violet-600 hover:text-violet-700 transition-colors text-xs font-semibold cursor-pointer bg-violet-50/50 hover:bg-violet-100/60 border border-violet-100 px-2.5 py-1 rounded-full shadow-2xs"
                                 title="Copy public share link"
                               >
-                                <Copy size={14} />
+                                <Copy size={13} />
                                 <span>Share Link</span>
                               </button>
                             )}
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <td className="py-3.5 px-5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             <button 
                               onClick={() => handleDownload(file)}
-                              className="p-1 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-violet-600 rounded-xl hover:bg-white hover:shadow-sm transition-all"
                               title="Download File"
                             >
-                              <Download size={16} />
+                              <Download size={15} />
                             </button>
                             <button 
                               onClick={() => promptDeleteFile(file)}
-                              className="p-1 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-white hover:shadow-sm transition-all"
                               title="Delete"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={15} />
                             </button>
-                            {Boolean(file.isPublic || file.public) ? (
+                            {isPublic ? (
                               <a 
                                 href={file.url || file.fileUrl || `/file/${fileId}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="p-1 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-white hover:shadow-sm transition-all"
                                 title="View File"
                               >
-                                <Eye size={16} />
+                                <Eye size={15} />
                               </a>
                             ) : null}
                           </div>
@@ -458,88 +515,94 @@ const MyFiles = () => {
           </div>
         ) : (
           /* Grid View */
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
             {filteredFiles.map((file) => {
               const fileId = file.id || file._id;
               const isPublic = Boolean(file.isPublic || file.public);
               return (
                 <div 
                   key={fileId} 
-                  className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group relative"
+                  className="bg-white hover:bg-gradient-to-b hover:from-white hover:to-purple-50/30 p-5 rounded-3xl border border-slate-100/80 shadow-sm hover:shadow-xl hover:shadow-violet-500/10 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
                 >
+                  {/* Subtle Top Gradient Accent Line */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        {getFileIcon(file)}
+                      <div className="p-3 bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl border border-violet-100/50 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                        {getFileIcon(file, "w-5 h-5")}
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 bg-slate-50/80 p-1 rounded-xl border border-slate-100">
                         <button 
                           onClick={() => handleDownload(file)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-violet-600 rounded-lg hover:bg-white hover:shadow-sm transition-all"
                           title="Download File"
                         >
-                          <Download size={16} />
+                          <Download size={17} />
                         </button>
                         <button 
                           onClick={() => promptDeleteFile(file)}
-                          className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-white hover:shadow-sm transition-all"
                           title="Delete"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={17} />
                         </button>
                         {isPublic ? (
                           <a 
                             href={file.url || file.fileUrl || `/file/${fileId}`} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-white hover:shadow-sm transition-all flex items-center gap-1"
                             title="View File"
                           >
-                            <Eye size={16} />
+                            <Eye size={17} />
                           </a>
-                        ) : (
-                          <span className="w-[28px]"></span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 
-                    <h3 className="font-semibold text-slate-800 text-sm truncate mb-1" title={file.name || file.fileName}>
-                      {file.name || file.fileName}
+                    <h3 className="font-bold text-slate-800 text-sm truncate mb-1 group-hover:text-violet-900 transition-colors" title={file.name || file.fileName}>
+                      {formatFileName(file.name || file.fileName, 30)}
                     </h3>
-                    <p className="text-xs text-slate-400 mb-3">
+                    <p className="text-xs text-slate-400 mb-3 font-medium">
                       {((file.size || file.fileSize || 0) / 1024).toFixed(1)} KB • {formatDate(file.uploadedAt || file.updatedAt || file.createdAt || file.uploadDate)}
                     </p>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                    <div className="flex items-center gap-3">
+                  {/* Bottom Footer Actions */}
+                  <div className="mt-4 pt-3 border-t border-slate-100/80 flex items-center justify-between text-xs text-slate-400">
+                    <div className="flex items-center gap-2">
                       {isPublic ? (
                         <button
                           onClick={() => promptToggleSharing(file)}
-                          className="flex items-center gap-1.5 text-slate-700 hover:text-violet-600 cursor-pointer group"
+                          className="flex items-center gap-1.5 text-slate-700 hover:text-violet-600 cursor-pointer group/btn bg-emerald-50/60 border border-emerald-100/80 px-2.5 py-1 rounded-full transition-all"
                           title="Click to make private"
                         >
-                          <Globe size={14} className="text-emerald-500 hover:scale-110 transition-transform" />
-                          <span className="font-medium group-hover:underline">Public</span>
+                          <Globe size={13} className="text-emerald-500 group-hover/btn:scale-110 transition-transform" />
+                          <span className="font-semibold text-emerald-700 text-[11px]">Public</span>
                         </button>
                       ) : (
                         <button
                           onClick={() => promptToggleSharing(file)}
-                          className="flex items-center gap-1.5 text-slate-700 hover:text-violet-600 cursor-pointer group"
+                          className="flex items-center gap-1.5 text-slate-700 hover:text-violet-600 cursor-pointer group/btn bg-slate-100/60 border border-slate-200/60 px-2.5 py-1 rounded-full transition-all"
                           title="Click to make public"
                         >
-                          <Lock size={14} className="text-slate-400 group-hover:text-violet-600 hover:scale-110 transition-transform" />
-                          <span className="font-medium group-hover:underline">Private</span>
+                          <Lock size={13} className="text-slate-400 group-hover/btn:text-violet-600 group-hover/btn:scale-110 transition-transform" />
+                          <span className="font-semibold text-slate-500 text-[11px]">Private</span>
                         </button>
                       )}
 
                       {isPublic && (
                         <button
-                          onClick={() => handleCopyShareLink(file)}
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors text-xs font-medium cursor-pointer"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openShareLinkModal(file);
+                          }}
+                          className="flex items-center gap-1 text-violet-600 hover:text-violet-700 transition-colors text-xs font-semibold cursor-pointer bg-violet-50/50 hover:bg-violet-100/60 border border-violet-100 px-2.5 py-1 rounded-full shadow-2xs"
                           title="Copy public share link"
                         >
-                          <Copy size={14} />
+                          <Copy size={13} />
                           <span>Share Link</span>
                         </button>
                       )}
@@ -635,13 +698,13 @@ const MyFiles = () => {
                     Delete File?
                   </h3>
                   <p className="text-xs text-slate-400 truncate max-w-[260px]">
-                    {deleteModalFile.name || deleteModalFile.fileName}
+                    {formatFileName(deleteModalFile.name || deleteModalFile.fileName, 30)}
                   </p>
                 </div>
               </div>
 
-              <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-                Are you sure you want to delete <span className="font-semibold text-slate-800">{deleteModalFile.name || deleteModalFile.fileName}</span>? This action cannot be undone.
+              <p className="text-sm text-slate-600 mb-6 leading-relaxed break-words">
+                Are you sure you want to delete <span className="font-semibold text-slate-800 break-all">{formatFileName(deleteModalFile.name || deleteModalFile.fileName, 35)}</span>? This action cannot be undone.
               </p>
 
               <div className="flex items-center justify-end gap-3">
@@ -660,6 +723,96 @@ const MyFiles = () => {
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                 >
                   {isDeleting ? 'Deleting...' : 'Delete File'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Share File Link Modal */}
+        {copyLinkModalFile && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCopyLinkModalFile(null);
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3">
+                <h3 className="text-lg font-bold text-slate-800">Share File</h3>
+                <button
+                  type="button"
+                  onClick={() => setCopyLinkModalFile(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="border-t border-slate-100 -mx-6 mb-5"></div>
+
+              {/* Body */}
+              <div className="space-y-3">
+                <p className="text-sm text-slate-700 font-medium">
+                  Share this link with others to give them access to this file:
+                </p>
+
+                {/* Input + Checkmark Box */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 bg-violet-50/30 border-2 border-purple-500 rounded-2xl px-4 py-2.5 flex items-center overflow-hidden">
+                    <input
+                      type="text"
+                      readOnly
+                      value={`${window.location.origin}/file/${copyLinkModalFile.id || copyLinkModalFile._id}`}
+                      className="w-full bg-transparent text-sm text-slate-900 font-medium focus:outline-none truncate selection:bg-purple-100"
+                      onClick={(e) => e.target.select()}
+                    />
+                  </div>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                    isCopied ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                  }`}>
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                </div>
+
+                {/* Status Indicator */}
+                {isCopied ? (
+                  <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                    ✓ Link copied to clipboard!
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Anyone with this link can access this file.
+                  </p>
+                )}
+              </div>
+
+              <div className="border-t border-slate-100 -mx-6 mt-6 mb-4"></div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCopyLinkModalFile(null)}
+                  className="px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopyModalUrl}
+                  className={`px-6 py-2.5 text-sm font-semibold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer ${
+                    isCopied
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-violet-600 hover:bg-violet-700 text-white'
+                  }`}
+                >
+                  {isCopied ? 'Copied!' : 'Copy Link'}
                 </button>
               </div>
             </div>

@@ -8,6 +8,7 @@ import MyFiles from './Pages/MyFiles'
 import Upload from './Pages/Upload'
 import Subscription from './Pages/Subscription'
 import Transactions from './Pages/Transactions'
+import PublicFileView from './Pages/PublicFileView'
 import { Toaster } from 'react-hot-toast'
 
 const App = () => {
@@ -53,6 +54,9 @@ const App = () => {
             <Transactions />
           </Show>
         } />
+
+        {/* Public Shared File Route */}
+        <Route path='/file/:id' element={<PublicFileView />} />
 
         {/* Catch-all route for undefined paths */}
         <Route path='/*' element={<RedirectToSignIn />} />
