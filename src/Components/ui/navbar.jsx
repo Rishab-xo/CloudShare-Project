@@ -42,11 +42,7 @@ export default function Navbar({ isVisible: propIsVisible }) {
   const [lastScrollY, setLastScrollY] = useState(0)
   const location = useLocation()
   const { isSignedIn } = useUser()
-  const { credits, fetchUserCredits } = useContext(UserCreditsContext)
-
-  useEffect(() => {
-    fetchUserCredits()
-  }, [fetchUserCredits])
+  const { credits } = useContext(UserCreditsContext)
 
   useEffect(() => {
     // Only track scroll locally if propIsVisible is not provided (e.g. on landing page)

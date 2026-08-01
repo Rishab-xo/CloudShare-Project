@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/react";
 import axios from "axios";
 import { apiEndpoints } from "../utils/apiEndpoints";
@@ -10,6 +10,7 @@ export const UserCreditsProvider = ({ children }) => {
   const [credits, setCredits] = useState(5);
   const [loading, setLoading] = useState(false);
   const { getToken, isSignedIn } = useAuth();
+  const loggedTokenRef = useRef(null);
 
   // Function to fetch the user credits that can be called from anywhere
   const fetchUserCredits = useCallback(async () => {
@@ -19,6 +20,10 @@ export const UserCreditsProvider = ({ children }) => {
 
     try {
       const token = await getToken();
+      if (loggedTokenRef.current !== token) {
+        console.log(token);
+        loggedTokenRef.current = token;
+      }
       const response = await axios.get(apiEndpoints.GET_CREDITS, {
         headers: { Authorization: `Bearer ${token}` }
       });
