@@ -26,6 +26,7 @@ import { useAuth } from '@clerk/react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { apiEndpoints } from '@/utils/apiEndpoints';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MyFiles = () => {
   const [files, setFiles] = useState([]);
@@ -35,10 +36,55 @@ const MyFiles = () => {
   const [shareModalFile, setShareModalFile] = useState(null);
   const [deleteModalFile, setDeleteModalFile] = useState(null);
   const [copyLinkModalFile, setCopyLinkModalFile] = useState(null);
+  const [previewModalFile, setPreviewModalFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const {getToken} = useAuth();
+
+  const openPreviewModal = async (file) => {
+    setPreviewModalFile(file);
+    setPreviewError(false);
+    setIsLoadingPreview(true);
+
+    const fileId = file.id || file._id;
+    const fallbackUrl = file.url || file.fileUrl || file.downloadUrl;
+
+    try {
+      const token = await getToken();
+      const downloadUrl = apiEndpoints.DOWNLOAD_FILE(fileId);
+      const response = await axios.get(downloadUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob',
+      });
+
+      const contentType = file.type || file.fileType || file.contentType || response.headers['content-type'] || 'application/octet-stream';
+      const blob = new Blob([response.data], { type: contentType });
+      const blobUrl = window.URL.createObjectURL(blob);
+      setPreviewUrl(blobUrl);
+    } catch (err) {
+      console.error("Error fetching preview blob:", err);
+      if (fallbackUrl) {
+        setPreviewUrl(fallbackUrl);
+      } else {
+        setPreviewError(true);
+      }
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const closePreviewModal = () => {
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      window.URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setPreviewModalFile(null);
+    setPreviewError(false);
+  };
 
   const openShareLinkModal = (file) => {
     setCopyLinkModalFile(file);
@@ -290,7 +336,12 @@ const MyFiles = () => {
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-6 p-2">
         {/* Header & Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: -15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        >
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-800">
               My Files <span className="text-slate-400 font-normal text-xl">{files.length}</span>
@@ -298,13 +349,15 @@ const MyFiles = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              to="/upload"
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm"
-            >
-              <UploadCloud className="w-4 h-4" />
-              <span>Upload New File</span>
-            </Link>
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <Link
+                to="/upload"
+                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm"
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>Upload New File</span>
+              </Link>
+            </motion.div>
 
             {/* View Mode Switcher */}
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
@@ -332,10 +385,15 @@ const MyFiles = () => {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Filter Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"
+        >
           <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -367,7 +425,7 @@ const MyFiles = () => {
               </button>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Files Content View */}
         {filteredFiles.length === 0 ? (
@@ -418,17 +476,23 @@ const MyFiles = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/80 text-sm text-slate-700">
-                  {filteredFiles.map((file) => {
+                  {filteredFiles.map((file, idx) => {
                     const fileId = file.id || file._id;
                     const isPublic = Boolean(file.isPublic || file.public);
                     return (
-                      <tr key={fileId} className="hover:bg-violet-50/20 transition-colors duration-200 group">
+                      <motion.tr 
+                        key={fileId} 
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: idx * 0.03 }}
+                        className="hover:bg-violet-50/60 hover:shadow-2xs transition-all duration-200 group"
+                      >
                         <td className="py-3.5 px-5">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="p-2.5 bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl border border-violet-100/50 shrink-0 group-hover:scale-105 transition-transform duration-200">
+                            <div className="p-2.5 bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl border border-violet-100/50 shrink-0 group-hover:bg-white group-hover:shadow-sm group-hover:scale-105 transition-all duration-200">
                               {getFileIcon(file)}
                             </div>
-                            <span className="font-semibold text-slate-800 text-xs truncate group-hover:text-violet-900 transition-colors" title={file.name || file.fileName}>
+                            <span className="font-semibold text-slate-800 text-xs truncate group-hover:text-violet-700 transition-colors" title={file.name || file.fileName}>
                               {formatFileName(file.name || file.fileName, 35)}
                             </span>
                           </div>
@@ -480,6 +544,13 @@ const MyFiles = () => {
                         <td className="py-3.5 px-5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             <button 
+                              onClick={() => openPreviewModal(file)}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-white hover:shadow-sm transition-all"
+                              title="Preview File"
+                            >
+                              <Eye size={15} />
+                            </button>
+                            <button 
                               onClick={() => handleDownload(file)}
                               className="p-1.5 text-slate-400 hover:text-violet-600 rounded-xl hover:bg-white hover:shadow-sm transition-all"
                               title="Download File"
@@ -493,20 +564,9 @@ const MyFiles = () => {
                             >
                               <Trash2 size={15} />
                             </button>
-                            {isPublic ? (
-                              <a 
-                                href={file.url || file.fileUrl || `/file/${fileId}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="p-1.5 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-white hover:shadow-sm transition-all"
-                                title="View File"
-                              >
-                                <Eye size={15} />
-                              </a>
-                            ) : null}
                           </div>
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })}
                 </tbody>
@@ -516,12 +576,15 @@ const MyFiles = () => {
         ) : (
           /* Grid View */
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-            {filteredFiles.map((file) => {
+            {filteredFiles.map((file, idx) => {
               const fileId = file.id || file._id;
               const isPublic = Boolean(file.isPublic || file.public);
               return (
-                <div 
-                  key={fileId} 
+                <motion.div 
+                  key={fileId}
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.04 }}
                   className="bg-white hover:bg-gradient-to-b hover:from-white hover:to-purple-50/30 p-5 rounded-3xl border border-slate-100/80 shadow-sm hover:shadow-xl hover:shadow-violet-500/10 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
                 >
                   {/* Subtle Top Gradient Accent Line */}
@@ -533,6 +596,13 @@ const MyFiles = () => {
                         {getFileIcon(file, "w-5 h-5")}
                       </div>
                       <div className="flex items-center gap-1 bg-slate-50/80 p-1 rounded-xl border border-slate-100">
+                        <button 
+                          onClick={() => openPreviewModal(file)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-white hover:shadow-sm transition-all flex items-center gap-1"
+                          title="Preview File"
+                        >
+                          <Eye size={17} />
+                        </button>
                         <button 
                           onClick={() => handleDownload(file)}
                           className="p-1.5 text-slate-400 hover:text-violet-600 rounded-lg hover:bg-white hover:shadow-sm transition-all"
@@ -547,17 +617,6 @@ const MyFiles = () => {
                         >
                           <Trash2 size={17} />
                         </button>
-                        {isPublic ? (
-                          <a 
-                            href={file.url || file.fileUrl || `/file/${fileId}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-white hover:shadow-sm transition-all flex items-center gap-1"
-                            title="View File"
-                          >
-                            <Eye size={17} />
-                          </a>
-                        ) : null}
                       </div>
                     </div>
 
@@ -608,7 +667,7 @@ const MyFiles = () => {
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -813,6 +872,164 @@ const MyFiles = () => {
                   }`}
                 >
                   {isCopied ? 'Copied!' : 'Copy Link'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* File Preview Modal */}
+        {previewModalFile && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200"
+            onClick={closePreviewModal}
+          >
+            <div 
+              className="bg-white rounded-3xl max-w-4xl w-full p-6 shadow-2xl border border-slate-100 relative flex flex-col max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3 min-w-0 pr-4">
+                  <div className="p-2.5 bg-violet-50 rounded-2xl border border-violet-100 text-violet-600 shrink-0">
+                    {getFileIcon(previewModalFile, "w-6 h-6")}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-slate-800 truncate" title={previewModalFile.name || previewModalFile.fileName}>
+                      {previewModalFile.name || previewModalFile.fileName}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-slate-400 font-medium">
+                        {((previewModalFile.size || previewModalFile.fileSize || 0) / 1024).toFixed(1)} KB
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                        Boolean(previewModalFile.isPublic || previewModalFile.public) 
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {Boolean(previewModalFile.isPublic || previewModalFile.public) ? 'Public' : 'Private'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(previewModalFile)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <Download size={14} />
+                    <span>Download</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closePreviewModal}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body / Media Viewer */}
+              <div className="py-6 flex-1 flex items-center justify-center min-h-[300px] overflow-auto bg-slate-50/50 rounded-2xl my-4 border border-slate-100/80">
+                {isLoadingPreview ? (
+                  <div className="flex flex-col items-center justify-center p-8 space-y-3">
+                    <div className="w-8 h-8 border-3 border-violet-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-xs font-medium text-slate-500">Loading preview...</p>
+                  </div>
+                ) : previewError ? (
+                  <div className="flex flex-col items-center justify-center text-center p-8">
+                    <AlertCircle className="w-10 h-10 text-amber-500 mb-2" />
+                    <h4 className="text-sm font-bold text-slate-800 mb-1">Preview Unavailable</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mb-4">
+                      Unable to load inline preview for this file. You can download it directly.
+                    </p>
+                    <button
+                      onClick={() => handleDownload(previewModalFile)}
+                      className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-colors"
+                    >
+                      Download File
+                    </button>
+                  </div>
+                ) : (
+                  (() => {
+                    const category = getCategory(previewModalFile);
+                    if (category === 'image') {
+                      return (
+                        <img 
+                          src={previewUrl} 
+                          alt={previewModalFile.name || 'File preview'} 
+                          className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-md border border-slate-200/50"
+                        />
+                      );
+                    }
+                    if (category === 'video') {
+                      return (
+                        <video 
+                          src={previewUrl} 
+                          controls 
+                          autoPlay 
+                          className="max-h-[60vh] max-w-full rounded-2xl shadow-md"
+                        />
+                      );
+                    }
+                    if (category === 'audio') {
+                      return (
+                        <div className="flex flex-col items-center justify-center p-8 space-y-4 w-full max-w-md bg-white rounded-2xl border border-slate-100 shadow-sm">
+                          <div className="w-16 h-16 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center">
+                            <Film className="w-8 h-8 animate-pulse" />
+                          </div>
+                          <p className="text-sm font-semibold text-slate-800 truncate w-full text-center">
+                            {previewModalFile.name || previewModalFile.fileName}
+                          </p>
+                          <audio src={previewUrl} controls autoPlay className="w-full" />
+                        </div>
+                      );
+                    }
+                    if (category === 'pdf') {
+                      return (
+                        <iframe 
+                          src={previewUrl} 
+                          title="PDF Preview"
+                          className="w-full h-[60vh] rounded-xl border border-slate-200"
+                        />
+                      );
+                    }
+                    return (
+                      <div className="flex flex-col items-center justify-center text-center p-8 space-y-3">
+                        <div className="w-16 h-16 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center">
+                          {getFileIcon(previewModalFile, "w-8 h-8")}
+                        </div>
+                        <h4 className="text-base font-bold text-slate-800">
+                          {previewModalFile.name || previewModalFile.fileName}
+                        </h4>
+                        <p className="text-xs text-slate-500 max-w-sm">
+                          No direct browser preview available for this file type. Click download to access the full file.
+                        </p>
+                        <button
+                          onClick={() => handleDownload(previewModalFile)}
+                          className="bg-violet-600 hover:bg-violet-700 text-white px-5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                        >
+                          <Download size={14} />
+                          <span>Download File</span>
+                        </button>
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 shrink-0 text-xs text-slate-400">
+                <span>Uploaded: {formatDate(previewModalFile.uploadedAt || previewModalFile.createdAt)}</span>
+                <button
+                  onClick={closePreviewModal}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors cursor-pointer"
+                >
+                  Close Preview
                 </button>
               </div>
             </div>

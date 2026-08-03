@@ -13,13 +13,11 @@ export const apiEndpoints = {
   GET_USER_CREDITS: `${BASE_URL}/users/credits`,
   GET_CREDITS: `${BASE_URL}/users/credits`,
 
-  // // Subscriptions & Payments endpoints
-  // GET_PLANS: `${BASE_URL}/subscriptions/plans`,
-  // CREATE_SUBSCRIPTION: `${BASE_URL}/subscriptions/subscribe`,
-  // CANCEL_SUBSCRIPTION: `${BASE_URL}/subscriptions/cancel`,
-  // GET_TRANSACTIONS: `${BASE_URL}/transactions/history`,
+  // Payments & Subscription endpoints
+  CREATE_ORDER: `${BASE_URL}/payments/create-order`,
+  VERIFY_PAYMENT: `${BASE_URL}/payments/verify-payment`,
+  GET_TRANSACTIONS: `${BASE_URL}/transactions`,
 
   // Webhooks
-  CLERK_WEBHOOK: `${BASE_URL}/webhooks/clerk`,
-  // STRIPE_WEBHOOK: `${BASE_URL}/webhooks/stripe`,
+  CLERK_WEBHOOK: `${BASE_URL}/webhooks/clerk`,                  
 };
