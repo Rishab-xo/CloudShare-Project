@@ -20,16 +20,24 @@ import {
   AlertCircle,
   X,
   Copy,
-  CheckCircle2
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@clerk/react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { apiEndpoints } from '@/utils/apiEndpoints';
+import { getFileName, formatFileName } from '@/utils/fileHelpers';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MyFiles = () => {
   const [files, setFiles] = useState([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [viewMode, setViewMode] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -45,35 +53,17 @@ const MyFiles = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const {getToken} = useAuth();
 
-  const openPreviewModal = async (file) => {
+  const openPreviewModal = (file) => {
     setPreviewModalFile(file);
     setPreviewError(false);
-    setIsLoadingPreview(true);
+    setIsLoadingPreview(false);
 
-    const fileId = file.id || file._id;
-    const fallbackUrl = file.url || file.fileUrl || file.downloadUrl;
+    const directUrl = file.url || file.fileUrl || file.downloadUrl || file.s3Url || file.minioUrl;
 
-    try {
-      const token = await getToken();
-      const downloadUrl = apiEndpoints.DOWNLOAD_FILE(fileId);
-      const response = await axios.get(downloadUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob',
-      });
-
-      const contentType = file.type || file.fileType || file.contentType || response.headers['content-type'] || 'application/octet-stream';
-      const blob = new Blob([response.data], { type: contentType });
-      const blobUrl = window.URL.createObjectURL(blob);
-      setPreviewUrl(blobUrl);
-    } catch (err) {
-      console.error("Error fetching preview blob:", err);
-      if (fallbackUrl) {
-        setPreviewUrl(fallbackUrl);
-      } else {
-        setPreviewError(true);
-      }
-    } finally {
-      setIsLoadingPreview(false);
+    if (directUrl) {
+      setPreviewUrl(directUrl);
+    } else {
+      setPreviewError(true);
     }
   };
 
@@ -131,27 +121,64 @@ const MyFiles = () => {
     }
   };
 
-  const fetchFiles = async ()=>{
-    try{
+  const fetchFiles = async (pageToFetch = currentPage, sizeToFetch = pageSize) => {
+    setIsLoadingFiles(true);
+    try {
       const token = await getToken();
-      const response = await axios.get(apiEndpoints.FETCH_FILES, {headers: {Authorization: `Bearer ${token}`}});
-      if(response.status === 200){
-        console.log("Files API response:", response.data);
-        const dataList = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data?.files || response.data?.data || response.data?.fileList || []);
-        setFiles(dataList);
-      }
-    }
-    catch(error){
-      console.log("Error fetching files from server: ", error);
-      toast.error(`Error fetching the files from server: ${error.message}`);
-    }
-  }
+      const response = await axios.get(apiEndpoints.FETCH_FILES, {
+        params: {
+          pageNo: pageToFetch,
+          pageSize: sizeToFetch
+        },
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-  useEffect(()=>{
-    fetchFiles();
-  }, [getToken]);
+      if (response.status === 200) {
+        let dataList = [];
+        let totalP = 1;
+        let totalE = 0;
+
+        if (Array.isArray(response.data)) {
+          dataList = response.data;
+          totalE = response.data.length;
+          totalP = Math.ceil(totalE / sizeToFetch) || 1;
+        } else if (response.data && typeof response.data === 'object') {
+          const rawList = Array.isArray(response.data.content)
+            ? response.data.content
+            : (response.data.files || response.data.data || response.data.fileList || []);
+          dataList = Array.isArray(rawList) ? rawList : [];
+
+          totalP = typeof response.data.totalPages === 'number'
+            ? response.data.totalPages
+            : (Math.ceil(dataList.length / sizeToFetch) || 1);
+
+          totalE = typeof response.data.totalElements === 'number'
+            ? response.data.totalElements
+            : dataList.length;
+        }
+
+        setFiles(dataList);
+        setTotalPages(totalP);
+        setTotalElements(totalE);
+      }
+    } catch (error) {
+      console.error("Error fetching files from server: ", error);
+      toast.error(`Error fetching the files from server: ${error.message}`);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFiles(currentPage, pageSize);
+  }, [currentPage, pageSize, getToken]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 0 && newPage < totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const formatDate = (dateValue) => {
     if (!dateValue) return 'N/A';
@@ -160,20 +187,21 @@ const MyFiles = () => {
   };
 
   const handleDownload = async (file) => {
-    const fileId = file.id || file._id;
-    const fileName = file.name || file.fileName || 'download';
+    const directUrl = file.url || file.fileUrl || file.downloadUrl || file.s3Url || file.minioUrl;
+    const fileName = getFileName(file);
     
-    try {
-      const token = await getToken();
-      // Fetch download URL or file blob from API endpoint
-      const downloadUrl = apiEndpoints.DOWNLOAD_FILE(fileId);
-      const response = await axios.get(downloadUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob',
-      });
+    if (!directUrl) {
+      toast.error('Download URL not available for this file');
+      return;
+    }
 
-      // Trigger browser download
-      const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+    try {
+      // Fetch directly from MinIO/S3 URL without routing through Spring Boot server
+      const response = await fetch(directUrl);
+      if (!response.ok) throw new Error('Failed to fetch file from storage');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
       const link = document.createElement('a');
       link.href = blobUrl;
       link.setAttribute('download', fileName);
@@ -184,21 +212,16 @@ const MyFiles = () => {
 
       toast.success(`Downloaded ${fileName}`);
     } catch (error) {
-      console.error("Error downloading file:", error);
-      // Fallback: If backend returns a direct URL inside file object
-      const fallbackUrl = file.url || file.fileUrl || file.downloadUrl;
-      if (fallbackUrl) {
-        const link = document.createElement('a');
-        link.href = fallbackUrl;
-        link.download = fileName;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success(`Starting download for ${fileName}`);
-      } else {
-        toast.error(`Error downloading file: ${error.response?.data?.message || error.message}`);
-      }
+      console.warn("Direct blob fetch failed, downloading directly from MinIO link:", error);
+      // Fallback: direct browser download from MinIO/S3 URL
+      const link = document.createElement('a');
+      link.href = directUrl;
+      link.target = '_blank';
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success(`Starting download for ${fileName}`);
     }
   };
 
@@ -259,9 +282,13 @@ const MyFiles = () => {
       });
 
       if (response.status === 200 || response.status === 204) {
-        setFiles(prevFiles => prevFiles.filter(file => (file.id || file._id) !== fileId));
         toast.success('File deleted successfully!');
         window.dispatchEvent(new Event('creditsUpdated'));
+        if (files.length === 1 && currentPage > 0) {
+          setCurrentPage(prev => prev - 1);
+        } else {
+          fetchFiles(currentPage, pageSize);
+        }
       }
     } catch (error) {
       console.error("Error deleting file:", error);
@@ -272,24 +299,9 @@ const MyFiles = () => {
     }
   };
 
-  const formatFileName = (rawName, maxLength = 35) => {
-    if (!rawName) return '';
-    if (rawName.length <= maxLength) return rawName;
-
-    const parts = rawName.split('.');
-    if (parts.length > 1) {
-      const ext = parts.pop();
-      const base = parts.join('.');
-      const availableBaseLength = Math.max(10, maxLength - ext.length - 4);
-      return `${base.substring(0, availableBaseLength)}...${ext}`;
-    }
-
-    return `${rawName.substring(0, maxLength - 3)}...`;
-  };
-
   const getCategory = (fileObj) => {
     const typeStr = (fileObj?.type || fileObj?.fileType || fileObj?.contentType || '').toLowerCase();
-    const nameStr = fileObj?.name || fileObj?.fileName || '';
+    const nameStr = getFileName(fileObj);
     const ext = nameStr.split('.').pop()?.toLowerCase() || '';
 
     if (typeStr.includes('image') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) {
@@ -302,7 +314,7 @@ const MyFiles = () => {
   };
 
   const filteredFiles = files.filter(file => {
-    const fileName = file.name || file.fileName || '';
+    const fileName = getFileName(file);
     const matchesSearch = fileName.toLowerCase().includes(searchQuery.toLowerCase());
     const fileCategory = getCategory(file);
     const matchesCategory = selectedCategory === 'all' || fileCategory === selectedCategory;
@@ -312,7 +324,7 @@ const MyFiles = () => {
   const getFileIcon = (fileObj, className = "w-5 h-5") => {
     // Handle both object parameter or string type
     const typeStr = typeof fileObj === 'string' ? fileObj : (fileObj?.type || fileObj?.fileType || fileObj?.contentType || '');
-    const nameStr = typeof fileObj === 'object' ? (fileObj?.name || fileObj?.fileName || '') : '';
+    const nameStr = typeof fileObj === 'object' ? getFileName(fileObj) : '';
     const ext = nameStr.split('.').pop()?.toLowerCase() || '';
 
     const isImage = 
@@ -344,7 +356,7 @@ const MyFiles = () => {
         >
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-800">
-              My Files <span className="text-slate-400 font-normal text-xl">{files.length}</span>
+              My Files <span className="text-slate-400 font-normal text-xl">{totalElements || files.length}</span>
             </h1>
           </div>
 
@@ -400,7 +412,10 @@ const MyFiles = () => {
               type="text"
               placeholder="Search files..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(0);
+              }}
               className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 text-slate-800"
             />
           </div>
@@ -414,7 +429,10 @@ const MyFiles = () => {
             ].map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
+                onClick={() => {
+                  setSelectedCategory(cat.id);
+                  setCurrentPage(0);
+                }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   selectedCategory === cat.id
                     ? 'bg-violet-50 text-violet-600 border border-violet-200'
@@ -492,8 +510,8 @@ const MyFiles = () => {
                             <div className="p-2.5 bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl border border-violet-100/50 shrink-0 group-hover:bg-white group-hover:shadow-sm group-hover:scale-105 transition-all duration-200">
                               {getFileIcon(file)}
                             </div>
-                            <span className="font-semibold text-slate-800 text-xs truncate group-hover:text-violet-700 transition-colors" title={file.name || file.fileName}>
-                              {formatFileName(file.name || file.fileName, 35)}
+                            <span className="font-semibold text-slate-800 text-xs truncate group-hover:text-violet-700 transition-colors" title={getFileName(file)}>
+                              {formatFileName(file, 35)}
                             </span>
                           </div>
                         </td>
@@ -620,8 +638,8 @@ const MyFiles = () => {
                       </div>
                     </div>
 
-                    <h3 className="font-bold text-slate-800 text-sm truncate mb-1 group-hover:text-violet-900 transition-colors" title={file.name || file.fileName}>
-                      {formatFileName(file.name || file.fileName, 30)}
+                    <h3 className="font-bold text-slate-800 text-sm truncate mb-1 group-hover:text-violet-900 transition-colors" title={getFileName(file)}>
+                      {formatFileName(file, 30)}
                     </h3>
                     <p className="text-xs text-slate-400 mb-3 font-medium">
                       {((file.size || file.fileSize || 0) / 1024).toFixed(1)} KB • {formatDate(file.uploadedAt || file.updatedAt || file.createdAt || file.uploadDate)}
@@ -673,6 +691,90 @@ const MyFiles = () => {
           </div>
         )}
 
+        {/* Dynamic Pagination Bar (appears when total files exceed 10 or totalPages > 1) */}
+        {(totalElements > 10 || totalPages > 1) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mt-4"
+          >
+            {/* Pagination Metadata */}
+            <div className="text-xs font-medium text-slate-500">
+              Showing{' '}
+              <span className="font-bold text-slate-800">
+                {totalElements === 0 ? 0 : currentPage * pageSize + 1}
+              </span>{' '}
+              to{' '}
+              <span className="font-bold text-slate-800">
+                {Math.min((currentPage + 1) * pageSize, totalElements)}
+              </span>{' '}
+              of <span className="font-bold text-slate-800">{totalElements}</span> files
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 0 || isLoadingFiles}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Prev</span>
+              </button>
+
+              {/* Dynamic Page Buttons */}
+              <div className="flex items-center gap-1 mx-1">
+                {Array.from({ length: totalPages }, (_, i) => i).map((pageIdx) => {
+                  if (
+                    totalPages > 7 &&
+                    Math.abs(pageIdx - currentPage) > 2 &&
+                    pageIdx !== 0 &&
+                    pageIdx !== totalPages - 1
+                  ) {
+                    if (
+                      (pageIdx === 1 && currentPage > 3) ||
+                      (pageIdx === totalPages - 2 && currentPage < totalPages - 4)
+                    ) {
+                      return (
+                        <span key={pageIdx} className="px-1 text-slate-400 text-xs">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  }
+
+                  const isCurrent = pageIdx === currentPage;
+                  return (
+                    <button
+                      key={pageIdx}
+                      onClick={() => handlePageChange(pageIdx)}
+                      disabled={isLoadingFiles}
+                      className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+                        isCurrent
+                          ? 'bg-violet-600 text-white shadow-sm shadow-violet-300 scale-105'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      {pageIdx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages - 1 || isLoadingFiles}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Confirmation Modal for Toggling Sharing */}
         {shareModalFile && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -698,7 +800,7 @@ const MyFiles = () => {
                     Change Access Privacy?
                   </h3>
                   <p className="text-xs text-slate-400 truncate max-w-[260px]">
-                    {shareModalFile.name || shareModalFile.fileName}
+                    {getFileName(shareModalFile)}
                   </p>
                 </div>
               </div>
@@ -757,13 +859,13 @@ const MyFiles = () => {
                     Delete File?
                   </h3>
                   <p className="text-xs text-slate-400 truncate max-w-[260px]">
-                    {formatFileName(deleteModalFile.name || deleteModalFile.fileName, 30)}
+                    {formatFileName(deleteModalFile, 30)}
                   </p>
                 </div>
               </div>
 
               <p className="text-sm text-slate-600 mb-6 leading-relaxed break-words">
-                Are you sure you want to delete <span className="font-semibold text-slate-800 break-all">{formatFileName(deleteModalFile.name || deleteModalFile.fileName, 35)}</span>? This action cannot be undone.
+                Are you sure you want to delete <span className="font-semibold text-slate-800 break-all">{formatFileName(deleteModalFile, 35)}</span>? This action cannot be undone.
               </p>
 
               <div className="flex items-center justify-end gap-3">
@@ -895,8 +997,8 @@ const MyFiles = () => {
                     {getFileIcon(previewModalFile, "w-6 h-6")}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold text-slate-800 truncate" title={previewModalFile.name || previewModalFile.fileName}>
-                      {previewModalFile.name || previewModalFile.fileName}
+                    <h3 className="text-base font-bold text-slate-800 truncate" title={getFileName(previewModalFile)}>
+                      {getFileName(previewModalFile)}
                     </h3>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-xs text-slate-400 font-medium">
@@ -983,7 +1085,7 @@ const MyFiles = () => {
                             <Film className="w-8 h-8 animate-pulse" />
                           </div>
                           <p className="text-sm font-semibold text-slate-800 truncate w-full text-center">
-                            {previewModalFile.name || previewModalFile.fileName}
+                            {getFileName(previewModalFile)}
                           </p>
                           <audio src={previewUrl} controls autoPlay className="w-full" />
                         </div>
@@ -1004,7 +1106,7 @@ const MyFiles = () => {
                           {getFileIcon(previewModalFile, "w-8 h-8")}
                         </div>
                         <h4 className="text-base font-bold text-slate-800">
-                          {previewModalFile.name || previewModalFile.fileName}
+                          {getFileName(previewModalFile)}
                         </h4>
                         <p className="text-xs text-slate-500 max-w-sm">
                           No direct browser preview available for this file type. Click download to access the full file.

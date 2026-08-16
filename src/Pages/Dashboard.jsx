@@ -23,6 +23,7 @@ import { useAuth, useUser } from '@clerk/react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { getFileName } from '@/utils/fileHelpers';
 import { apiEndpoints } from '@/utils/apiEndpoints';
 import { UserCreditsContext } from '@/context/UserCreditsContext';
 
@@ -50,12 +51,10 @@ const Dashboard = () => {
       });
 
       if (response.status === 200) {
-        let fileList = [];
-        if (Array.isArray(response.data)) {
-          fileList = response.data;
-        } else if (response.data && Array.isArray(response.data.files)) {
-          fileList = response.data.files;
-        }
+        const rawList = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data?.content || response.data?.files || response.data?.data || response.data?.fileList || []);
+        const fileList = Array.isArray(rawList) ? rawList : [];
 
         setFiles(fileList);
 
@@ -88,7 +87,7 @@ const Dashboard = () => {
   };
 
   const getFileTypeDetails = (fileObj) => {
-    const nameStr = fileObj?.name || fileObj?.fileName || '';
+    const nameStr = getFileName(fileObj);
     const ext = nameStr.split('.').pop()?.toLowerCase() || '';
 
     if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
@@ -312,7 +311,7 @@ const Dashboard = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {files.slice(0, 5).map((file, idx) => {
-                    const fileName = file.name || file.fileName || 'Untitled File';
+                    const fileName = getFileName(file);
                     const fileSize = formatStorage(file.size || file.fileSize || 0);
                     const isPublic = file.isPublic || file.public;
                     const dateStr = file.createdAt || file.uploadDate || file.date

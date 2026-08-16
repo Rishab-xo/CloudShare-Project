@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { apiEndpoints } from '@/utils/apiEndpoints';
+import { getFileName } from '@/utils/fileHelpers';
 import { motion } from 'framer-motion';
 import { 
   FileText, 
@@ -65,7 +66,7 @@ const PublicFileView = () => {
 
   const getFileIcon = (fileObj) => {
     const typeStr = (fileObj?.type || fileObj?.fileType || fileObj?.contentType || '').toLowerCase();
-    const nameStr = fileObj?.name || fileObj?.fileName || '';
+    const nameStr = getFileName(fileObj);
     const ext = nameStr.split('.').pop()?.toLowerCase() || '';
 
     if (typeStr.includes('image') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
@@ -100,14 +101,22 @@ const PublicFileView = () => {
 
   const handleDownload = async () => {
     if (!file) return;
-    const fileName = file.name || file.fileName || 'download';
+    const directUrl = file.url || file.fileUrl || file.downloadUrl || file.s3Url || file.minioUrl;
+    const fileName = getFileName(file);
+    
+    if (!directUrl) {
+      toast.error('Download URL unavailable');
+      return;
+    }
+
     setDownloading(true);
 
     try {
-      const response = await axios.get(apiEndpoints.DOWNLOAD_FILE(id), {
-        responseType: 'blob',
-      });
-      const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const response = await fetch(directUrl);
+      if (!response.ok) throw new Error('Failed to fetch file from cloud storage');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
       const link = document.createElement('a');
       link.href = blobUrl;
       link.setAttribute('download', fileName);
@@ -117,13 +126,15 @@ const PublicFileView = () => {
       window.URL.revokeObjectURL(blobUrl);
       toast.success(`Downloaded ${fileName}`);
     } catch (err) {
-      console.error('Download error:', err);
-      const fallbackUrl = file.url || file.fileUrl || file.downloadUrl;
-      if (fallbackUrl) {
-        window.open(fallbackUrl, '_blank');
-      } else {
-        toast.error('Unable to download file');
-      }
+      console.warn('Direct fetch failed, opening direct link:', err);
+      const link = document.createElement('a');
+      link.href = directUrl;
+      link.target = '_blank';
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success(`Starting download for ${fileName}`);
     } finally {
       setDownloading(false);
     }
@@ -163,7 +174,7 @@ const PublicFileView = () => {
     );
   }
 
-  const fileName = file.name || file.fileName || 'Untitled File';
+  const fileName = getFileName(file);
   const fileSize = formatFileSize(file.size || file.fileSize || 0);
   const fileTypeStr = (file.type || file.fileType || file.contentType || 'file').toUpperCase();
   const sharedDate = file.createdAt || file.uploadDate || file.date 

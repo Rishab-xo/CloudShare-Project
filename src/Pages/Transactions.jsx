@@ -80,8 +80,17 @@ const Transactions = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.status === 200 && Array.isArray(response.data) && response.data.length > 0) {
-        setTransactions(response.data);
+      if (response.status === 200) {
+        const rawList = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data?.content || response.data?.transactions || response.data?.data || []);
+        const dataList = Array.isArray(rawList) ? rawList : [];
+
+        if (dataList.length > 0) {
+          setTransactions(dataList);
+        } else {
+          setTransactions(sampleTransactions);
+        }
       } else {
         // Fallback to sample data if backend endpoint has no transactions yet
         setTransactions(sampleTransactions);
