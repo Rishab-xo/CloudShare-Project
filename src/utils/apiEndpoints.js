@@ -1,4 +1,11 @@
-const BASE_URL = "http://localhost:8080/api/v1.0";
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  const baseUrl = envUrl || "https://cloudshareapi-6ba6.onrender.com";
+  const cleanUrl = baseUrl.replace(/\/$/, "");
+  return cleanUrl.endsWith("/api/v1.0") ? cleanUrl : `${cleanUrl}/api/v1.0`;
+};
+
+const BASE_URL = getBaseUrl();
 
 export const apiEndpoints = {
   // File endpoints

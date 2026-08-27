@@ -6,13 +6,44 @@ import toast from "react-hot-toast";
 
 export const UserCreditsContext = createContext();
 
+export const extractCredits = (data) => {
+  const parseNum = (val) => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string' && val.trim() !== '' && !isNaN(Number(val))) return Number(val);
+    return null;
+  };
+
+  const direct = parseNum(data);
+  if (direct !== null) return direct;
+
+  if (!data || typeof data !== 'object') return null;
+
+  const fields = ['credits', 'creditsLeft', 'remainingCredits', 'userCredits', 'credit', 'balance', 'availableCredits', 'totalCredits'];
+  for (const field of fields) {
+    const val = parseNum(data[field]);
+    if (val !== null) return val;
+  }
+
+  if (data.data) {
+    const nestedData = extractCredits(data.data);
+    if (nestedData !== null) return nestedData;
+  }
+
+  if (data.user) {
+    const nestedUser = extractCredits(data.user);
+    if (nestedUser !== null) return nestedUser;
+  }
+
+  return null;
+};
+
 export const UserCreditsProvider = ({ children }) => {
-  const [credits, setCredits] = useState(5);
+  const [credits, setCredits] = useState(0);
   const [loading, setLoading] = useState(false);
   const { getToken, isSignedIn } = useAuth();
   const loggedTokenRef = useRef(null);
 
-  // Function to fetch the user credits that can be called from anywhere
+  // Function to fetch the user credits directly from the backend
   const fetchUserCredits = useCallback(async () => {
     if (!isSignedIn) return;
 
@@ -20,25 +51,26 @@ export const UserCreditsProvider = ({ children }) => {
 
     try {
       const token = await getToken();
+      console.log('Clerk JWT Token:', token);
       if (loggedTokenRef.current !== token) {
-        console.log(token);
         loggedTokenRef.current = token;
       }
       const response = await axios.get(apiEndpoints.GET_CREDITS, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      console.log('GET_CREDITS backend response:', response.data);
+
       if (response.status === 200) {
-        // Support response.data.credits or direct response.data
-        const fetchedCredits = typeof response.data === 'number' 
-          ? response.data 
-          : (response.data?.credits ?? 5);
-        setCredits(fetchedCredits);
+        const fetchedCredits = extractCredits(response.data);
+        if (fetchedCredits !== null) {
+          setCredits(fetchedCredits);
+        }
       } else {
         toast.error('Unable to get the credits.');
       }
     } catch (error) {
-      console.error('Error fetching the user credits', error);
+      console.error('Error fetching the user credits from backend:', error);
     } finally {
       setLoading(false);
     }
@@ -47,13 +79,21 @@ export const UserCreditsProvider = ({ children }) => {
   useEffect(() => {
     if (isSignedIn) {
       fetchUserCredits();
-      window.addEventListener('creditsUpdated', fetchUserCredits);
-      return () => window.removeEventListener('creditsUpdated', fetchUserCredits);
+
+      const handleCreditsUpdated = () => {
+        fetchUserCredits();
+        // Secondary fetch after delay to ensure backend database transaction is fully committed
+        setTimeout(() => {
+          fetchUserCredits();
+        }, 500);
+      };
+
+      window.addEventListener('creditsUpdated', handleCreditsUpdated);
+      return () => window.removeEventListener('creditsUpdated', handleCreditsUpdated);
     }
   }, [fetchUserCredits, isSignedIn]);
 
   const updateCredits = useCallback((newCredits) => {
-    console.log('Updating the credits', newCredits);
     setCredits(newCredits);
   }, []);
 

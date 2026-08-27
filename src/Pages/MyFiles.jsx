@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '@/Layout/DashboardLayout';
 import { 
@@ -30,6 +30,7 @@ import toast from 'react-hot-toast';
 import { apiEndpoints } from '@/utils/apiEndpoints';
 import { getFileName, formatFileName } from '@/utils/fileHelpers';
 import { motion, AnimatePresence } from 'framer-motion';
+import { UserCreditsContext, extractCredits } from '@/context/UserCreditsContext';
 
 const MyFiles = () => {
   const [files, setFiles] = useState([]);
@@ -52,6 +53,7 @@ const MyFiles = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const {getToken} = useAuth();
+  const { updateCredits, fetchUserCredits } = useContext(UserCreditsContext);
 
   const openPreviewModal = (file) => {
     setPreviewModalFile(file);
@@ -283,6 +285,9 @@ const MyFiles = () => {
 
       if (response.status === 200 || response.status === 204) {
         toast.success('File deleted successfully!');
+        if (fetchUserCredits) {
+          fetchUserCredits();
+        }
         window.dispatchEvent(new Event('creditsUpdated'));
         if (files.length === 1 && currentPage > 0) {
           setCurrentPage(prev => prev - 1);

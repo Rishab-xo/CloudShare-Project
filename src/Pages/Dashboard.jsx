@@ -47,22 +47,41 @@ const Dashboard = () => {
     try {
       const token = await getToken();
       const response = await axios.get(apiEndpoints.FETCH_FILES, {
+        params: {
+          pageNo: 0,
+          pageSize: 1000,
+          page: 0,
+          size: 1000
+        },
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.status === 200) {
-        const rawList = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data?.content || response.data?.files || response.data?.data || response.data?.fileList || []);
-        const fileList = Array.isArray(rawList) ? rawList : [];
+        let rawList = [];
+        let totalElementsCount = 0;
 
+        if (Array.isArray(response.data)) {
+          rawList = response.data;
+          totalElementsCount = response.data.length;
+        } else if (response.data && typeof response.data === 'object') {
+          const list = Array.isArray(response.data.content)
+            ? response.data.content
+            : (response.data.files || response.data.data || response.data.fileList || []);
+          rawList = Array.isArray(list) ? list : [];
+
+          totalElementsCount = typeof response.data.totalElements === 'number'
+            ? response.data.totalElements
+            : rawList.length;
+        }
+
+        const fileList = rawList;
         setFiles(fileList);
 
         const publicCount = fileList.filter(f => f.isPublic || f.public).length;
         const totalSize = fileList.reduce((acc, f) => acc + (f.size || f.fileSize || 0), 0);
 
         setStats({
-          totalFiles: fileList.length,
+          totalFiles: Math.max(totalElementsCount, fileList.length),
           publicFiles: publicCount,
           totalStorageBytes: totalSize
         });

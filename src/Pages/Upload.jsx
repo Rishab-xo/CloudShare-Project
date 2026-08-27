@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import DashboardLayout from '@/Layout/DashboardLayout';
 import { UploadCloud, File, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@clerk/react';
@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { apiEndpoints } from '@/utils/apiEndpoints';
 import { motion, AnimatePresence } from 'framer-motion';
+import { UserCreditsContext, extractCredits } from '@/context/UserCreditsContext';
 
 const MAX_FILE_LIMIT = 5;
 
@@ -16,6 +17,7 @@ const Upload = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const { getToken } = useAuth();
   const navigate = useNavigate();
+  const { updateCredits, fetchUserCredits } = useContext(UserCreditsContext);
 
   const addFiles = (newFiles) => {
     const fileArray = Array.from(newFiles);
@@ -89,6 +91,11 @@ const Upload = () => {
             ? 'File uploaded successfully!' 
             : `${selectedFiles.length} files uploaded successfully!`
         );
+
+        if (fetchUserCredits) {
+          fetchUserCredits();
+        }
+
         window.dispatchEvent(new Event('creditsUpdated'));
         setSelectedFiles([]);
         navigate('/my-files');
