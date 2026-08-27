@@ -1,7 +1,7 @@
 import React from "react";
-import { ImageSplit } from "@/components/ui/image-split";
-import { GradientSlideButton } from "@/components/ui/gradient-slide-button";
-import dashboard from "../../assets/dashboard.png"
+import { ImageSplit } from "@/Components/ui/image-split";
+import { GradientSlideButton } from "@/Components/ui/gradient-slide-button";
+import dashboard from "../../assets/Dashboard.png"
 import { SignInButton, SignUpButton } from "@clerk/react";
 
 const HeroSection = () => {
