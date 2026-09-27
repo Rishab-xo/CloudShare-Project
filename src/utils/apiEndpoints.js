@@ -13,8 +13,9 @@ export const apiEndpoints = {
   TOGGLE_FILE: (id) => `${BASE_URL}/files/${id}/toggle-public`,
   UPLOAD_FILE: `${BASE_URL}/files/upload`,
   DELETE_FILE: (id) => `${BASE_URL}/files/${id}`,
-  // DOWNLOAD_FILE endpoint removed: downloads are served directly via MinIO/S3 URLs stored in MongoDB
+  DOWNLOAD_FILE: (id) => `${BASE_URL}/files/download/${id}`,
   PUBLIC_FILE: (id) => `${BASE_URL}/files/public/${id}`,
+  PUBLIC_DOWNLOAD_FILE: (id) => `${BASE_URL}/files/public/${id}/download`,
 
   // User & Account endpoints
   GET_USER_CREDITS: `${BASE_URL}/users/credits`,

@@ -55,17 +55,35 @@ const MyFiles = () => {
   const {getToken} = useAuth();
   const { updateCredits, fetchUserCredits } = useContext(UserCreditsContext);
 
-  const openPreviewModal = (file) => {
+  const openPreviewModal = async (file) => {
     setPreviewModalFile(file);
     setPreviewError(false);
-    setIsLoadingPreview(false);
+    setIsLoadingPreview(true);
 
-    const directUrl = file.url || file.fileUrl || file.downloadUrl || file.s3Url || file.minioUrl;
+    const fileId = file.id || file._id;
 
-    if (directUrl) {
-      setPreviewUrl(directUrl);
-    } else {
-      setPreviewError(true);
+    try {
+      const token = await getToken();
+      // Fetch authenticated stream from backend
+      const response = await axios.get(apiEndpoints.DOWNLOAD_FILE(fileId), {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      const mimeType = file.contentType || file.type || response.headers['content-type'] || 'application/octet-stream';
+      const blob = new Blob([response.data], { type: mimeType });
+      const blobUrl = window.URL.createObjectURL(blob);
+      setPreviewUrl(blobUrl);
+    } catch (err) {
+      console.warn("Backend blob preview failed, falling back to direct URL:", err);
+      const directUrl = file.url || file.fileUrl || file.downloadUrl || file.s3Url || file.minioUrl;
+      const isMixedContent = window.location.protocol === 'https:' && directUrl && (directUrl.startsWith('http://localhost') || directUrl.startsWith('http://127.0.0.1'));
+      if (directUrl && !isMixedContent) {
+        setPreviewUrl(directUrl);
+      } else {
+        setPreviewError(true);
+      }
+    } finally {
+      setIsLoadingPreview(false);
     }
   };
 
@@ -189,21 +207,19 @@ const MyFiles = () => {
   };
 
   const handleDownload = async (file) => {
-    const directUrl = file.url || file.fileUrl || file.downloadUrl || file.s3Url || file.minioUrl;
+    const fileId = file.id || file._id;
     const fileName = getFileName(file);
-    
-    if (!directUrl) {
-      toast.error('Download URL not available for this file');
-      return;
-    }
+    const directUrl = file.url || file.fileUrl || file.downloadUrl || file.s3Url || file.minioUrl;
 
     try {
-      // Fetch directly from MinIO/S3 URL without routing through Spring Boot server
-      const response = await fetch(directUrl);
-      if (!response.ok) throw new Error('Failed to fetch file from storage');
-      const blob = await response.blob();
+      const token = await getToken();
+      // 1. First try downloading via backend endpoint with auth token
+      const response = await axios.get(apiEndpoints.DOWNLOAD_FILE(fileId), {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data]);
       const blobUrl = window.URL.createObjectURL(blob);
-
       const link = document.createElement('a');
       link.href = blobUrl;
       link.setAttribute('download', fileName);
@@ -211,19 +227,36 @@ const MyFiles = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
-
       toast.success(`Downloaded ${fileName}`);
     } catch (error) {
-      console.warn("Direct blob fetch failed, downloading directly from MinIO link:", error);
-      // Fallback: direct browser download from MinIO/S3 URL
-      const link = document.createElement('a');
-      link.href = directUrl;
-      link.target = '_blank';
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success(`Starting download for ${fileName}`);
+      console.warn("Backend stream download failed, attempting fallback direct fetch:", error);
+      if (directUrl) {
+        try {
+          const response = await fetch(directUrl);
+          if (!response.ok) throw new Error('Direct fetch failed');
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(blobUrl);
+          toast.success(`Downloaded ${fileName}`);
+        } catch (fetchErr) {
+          const link = document.createElement('a');
+          link.href = directUrl;
+          link.target = '_blank';
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          toast.success(`Starting download for ${fileName}`);
+        }
+      } else {
+        toast.error('Download URL not available for this file');
+      }
     }
   };
 
@@ -1068,8 +1101,9 @@ const MyFiles = () => {
                       return (
                         <img 
                           src={previewUrl} 
-                          alt={previewModalFile.name || 'File preview'} 
+                          alt={previewModalFile.name || previewModalFile.originalFileName || 'File preview'} 
                           className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-md border border-slate-200/50"
+                          onError={() => setPreviewError(true)}
                         />
                       );
                     }
@@ -1080,6 +1114,7 @@ const MyFiles = () => {
                           controls 
                           autoPlay 
                           className="max-h-[60vh] max-w-full rounded-2xl shadow-md"
+                          onError={() => setPreviewError(true)}
                         />
                       );
                     }
@@ -1092,7 +1127,7 @@ const MyFiles = () => {
                           <p className="text-sm font-semibold text-slate-800 truncate w-full text-center">
                             {getFileName(previewModalFile)}
                           </p>
-                          <audio src={previewUrl} controls autoPlay className="w-full" />
+                          <audio src={previewUrl} controls autoPlay className="w-full" onError={() => setPreviewError(true)} />
                         </div>
                       );
                     }
@@ -1102,6 +1137,7 @@ const MyFiles = () => {
                           src={previewUrl} 
                           title="PDF Preview"
                           className="w-full h-[60vh] rounded-xl border border-slate-200"
+                          onError={() => setPreviewError(true)}
                         />
                       );
                     }

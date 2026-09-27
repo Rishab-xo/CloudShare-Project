@@ -103,18 +103,16 @@ const PublicFileView = () => {
     if (!file) return;
     const directUrl = file.url || file.fileUrl || file.downloadUrl || file.s3Url || file.minioUrl;
     const fileName = getFileName(file);
+    const fileId = file.id || file._id || id;
     
-    if (!directUrl) {
-      toast.error('Download URL unavailable');
-      return;
-    }
-
     setDownloading(true);
 
     try {
-      const response = await fetch(directUrl);
-      if (!response.ok) throw new Error('Failed to fetch file from cloud storage');
-      const blob = await response.blob();
+      // 1. Try fetching directly via backend public stream endpoint
+      const response = await axios.get(apiEndpoints.PUBLIC_DOWNLOAD_FILE(fileId), {
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data]);
       const blobUrl = window.URL.createObjectURL(blob);
       
       const link = document.createElement('a');
@@ -125,16 +123,37 @@ const PublicFileView = () => {
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
       toast.success(`Downloaded ${fileName}`);
-    } catch (err) {
-      console.warn('Direct fetch failed, opening direct link:', err);
-      const link = document.createElement('a');
-      link.href = directUrl;
-      link.target = '_blank';
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success(`Starting download for ${fileName}`);
+    } catch (backendErr) {
+      console.warn('Backend download failed, falling back to direct URL:', backendErr);
+      if (directUrl) {
+        try {
+          const response = await fetch(directUrl);
+          if (!response.ok) throw new Error('Failed to fetch file from cloud storage');
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(blobUrl);
+          toast.success(`Downloaded ${fileName}`);
+        } catch (err) {
+          console.warn('Direct fetch failed, opening direct link:', err);
+          const link = document.createElement('a');
+          link.href = directUrl;
+          link.target = '_blank';
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          toast.success(`Starting download for ${fileName}`);
+        }
+      } else {
+        toast.error('Download URL unavailable');
+      }
     } finally {
       setDownloading(false);
     }
