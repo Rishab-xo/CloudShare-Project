@@ -56,6 +56,10 @@ const MyFiles = () => {
   const { updateCredits, fetchUserCredits } = useContext(UserCreditsContext);
 
   const openPreviewModal = async (file) => {
+    if (!Boolean(file.isPublic || file.public)) {
+      toast.error('Preview is only available for public files.');
+      return;
+    }
     setPreviewModalFile(file);
     setPreviewError(false);
     setIsLoadingPreview(true);
@@ -605,13 +609,15 @@ const MyFiles = () => {
                         </td>
                         <td className="py-3.5 px-5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
-                            <button 
-                              onClick={() => openPreviewModal(file)}
-                              className="p-1.5 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-white hover:shadow-sm transition-all"
-                              title="Preview File"
-                            >
-                              <Eye size={15} />
-                            </button>
+                            {Boolean(file.isPublic || file.public) && (
+                              <button 
+                                onClick={() => openPreviewModal(file)}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-white hover:shadow-sm transition-all"
+                                title="Preview File"
+                              >
+                                <Eye size={15} />
+                              </button>
+                            )}
                             <button 
                               onClick={() => handleDownload(file)}
                               className="p-1.5 text-slate-400 hover:text-violet-600 rounded-xl hover:bg-white hover:shadow-sm transition-all"
@@ -658,13 +664,15 @@ const MyFiles = () => {
                         {getFileIcon(file, "w-5 h-5")}
                       </div>
                       <div className="flex items-center gap-1 bg-slate-50/80 p-1 rounded-xl border border-slate-100">
-                        <button 
-                          onClick={() => openPreviewModal(file)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-white hover:shadow-sm transition-all flex items-center gap-1"
-                          title="Preview File"
-                        >
-                          <Eye size={17} />
-                        </button>
+                        {isPublic && (
+                          <button 
+                            onClick={() => openPreviewModal(file)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-white hover:shadow-sm transition-all flex items-center gap-1"
+                            title="Preview File"
+                          >
+                            <Eye size={17} />
+                          </button>
+                        )}
                         <button 
                           onClick={() => handleDownload(file)}
                           className="p-1.5 text-slate-400 hover:text-violet-600 rounded-lg hover:bg-white hover:shadow-sm transition-all"
