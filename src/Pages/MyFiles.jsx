@@ -230,7 +230,9 @@ const MyFiles = () => {
       toast.success(`Downloaded ${fileName}`);
     } catch (error) {
       console.warn("Backend stream download failed, attempting fallback direct fetch:", error);
-      if (directUrl) {
+      const isLocalHostUrl = directUrl && (directUrl.startsWith('http://localhost') || directUrl.startsWith('http://127.0.0.1'));
+      
+      if (directUrl && (!isLocalHostUrl || window.location.hostname === 'localhost')) {
         try {
           const response = await fetch(directUrl);
           if (!response.ok) throw new Error('Direct fetch failed');
@@ -245,17 +247,21 @@ const MyFiles = () => {
           window.URL.revokeObjectURL(blobUrl);
           toast.success(`Downloaded ${fileName}`);
         } catch (fetchErr) {
-          const link = document.createElement('a');
-          link.href = directUrl;
-          link.target = '_blank';
-          link.setAttribute('download', fileName);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          toast.success(`Starting download for ${fileName}`);
+          if (!isLocalHostUrl) {
+            const link = document.createElement('a');
+            link.href = directUrl;
+            link.target = '_blank';
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success(`Starting download for ${fileName}`);
+          } else {
+            toast.error('This file was stored on local disk and is not available in cloud storage.');
+          }
         }
       } else {
-        toast.error('Download URL not available for this file');
+        toast.error('File is unavailable or was stored in local development storage.');
       }
     }
   };

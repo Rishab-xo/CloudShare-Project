@@ -125,7 +125,9 @@ const PublicFileView = () => {
       toast.success(`Downloaded ${fileName}`);
     } catch (backendErr) {
       console.warn('Backend download failed, falling back to direct URL:', backendErr);
-      if (directUrl) {
+      const isLocalHostUrl = directUrl && (directUrl.startsWith('http://localhost') || directUrl.startsWith('http://127.0.0.1'));
+
+      if (directUrl && (!isLocalHostUrl || window.location.hostname === 'localhost')) {
         try {
           const response = await fetch(directUrl);
           if (!response.ok) throw new Error('Failed to fetch file from cloud storage');
@@ -141,18 +143,21 @@ const PublicFileView = () => {
           window.URL.revokeObjectURL(blobUrl);
           toast.success(`Downloaded ${fileName}`);
         } catch (err) {
-          console.warn('Direct fetch failed, opening direct link:', err);
-          const link = document.createElement('a');
-          link.href = directUrl;
-          link.target = '_blank';
-          link.setAttribute('download', fileName);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          toast.success(`Starting download for ${fileName}`);
+          if (!isLocalHostUrl) {
+            const link = document.createElement('a');
+            link.href = directUrl;
+            link.target = '_blank';
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success(`Starting download for ${fileName}`);
+          } else {
+            toast.error('This file was stored on local disk and is not available in cloud storage.');
+          }
         }
       } else {
-        toast.error('Download URL unavailable');
+        toast.error('File is unavailable or was stored in local development storage.');
       }
     } finally {
       setDownloading(false);
